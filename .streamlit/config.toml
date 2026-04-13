@@ -1,1 +1,18 @@
+[theme]
+# Forzar el modo claro (mata el fondo negro)
+base="light"
 
+# Naranja Terintalia (Para botones y al hacer clic en cuadros de texto)
+primaryColor="#E67E22"
+
+# Gris bajito profesional para el fondo de la pantalla
+backgroundColor="#F0F2F6"
+
+# Blanco puro para las tarjetas, listas y cuadros de texto
+secondaryBackgroundColor="#FFFFFF"
+
+# Café oscuro para todo el texto
+textColor="#4E342E"
+
+# Fuente limpia
+font="sans serif"
