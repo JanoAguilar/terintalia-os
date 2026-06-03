@@ -2,6 +2,9 @@ import streamlit as st
 from datetime import datetime
 
 def render(db, paciente, id_pac):
+    # --- LETRERO DE PRUEBA (Para saber si la nube ya se actualizó) ---
+    st.error("🚀 VERSIÓN NUEVA ACTIVADA - APARTADO I")
+
     if 'conf_borrador' not in st.session_state: st.session_state.conf_borrador = False
     if 'conf_sello' not in st.session_state: st.session_state.conf_sello = False
     if 'tmp_hc' not in st.session_state: st.session_state.tmp_hc = {}
@@ -12,7 +15,7 @@ def render(db, paciente, id_pac):
     datos_hc = doc_hc.to_dict() if doc_hc.exists else {}
     bloqueado = datos_hc.get("bloqueado", False)
 
-# =========================================================
+    # =========================================================
     # APARTADO I: FICHA DE IDENTIFICACIÓN (Solo Lectura)
     # =========================================================
     st.markdown("<h5 style='color: #1E3A8A;'>I. Ficha de Identificación y Datos Generales</h5>", unsafe_allow_html=True)
@@ -29,7 +32,6 @@ def render(db, paciente, id_pac):
         
         st.write(f"**Domicilio:** {paciente.get('domicilio', 'N/A')}")
     st.write("")
-
 
     # ==========================================
     # RUTEO INTELIGENTE DE PLANTILLAS
@@ -73,7 +75,6 @@ def render(db, paciente, id_pac):
             
             with st.form("form_hc"):
                 payload = {}
-
                 
                 # ---------------------------------------------------------
                 # 1. PLANTILLA: PSICOLOGÍA ADULTOS
