@@ -54,6 +54,32 @@ def render(db, paciente, id_pac):
             
             with st.form("form_hc"):
                 payload = {}
+
+# =========================================================
+                # APARTADO I: FICHA DE IDENTIFICACIÓN (Universal)
+                # =========================================================
+                with st.expander("I. Ficha de Identificación y Datos Generales", expanded=True):
+                    c_id1, c_id2, c_id3 = st.columns(3)
+                    # Jalamos los datos del paciente si existen en el dict principal, sino lo deja en blanco
+                    payload["id_nombre"] = c_id1.text_input("Nombre completo:", value=datos_hc.get("id_nombre", paciente.get("nombre", "")))
+                    payload["id_edad"] = c_id2.text_input("Edad:", value=datos_hc.get("id_edad", str(paciente.get("edad", ""))))
+                    payload["id_sexo"] = c_id3.text_input("Sexo / Género:", value=datos_hc.get("id_sexo", paciente.get("sexo", "")))
+                    
+                    c_id4, c_id5, c_id6 = st.columns(3)
+                    payload["id_telefono"] = c_id4.text_input("Teléfono de contacto:", value=datos_hc.get("id_telefono", paciente.get("telefono", "")))
+                    payload["id_correo"] = c_id5.text_input("Correo electrónico:", value=datos_hc.get("id_correo", paciente.get("correo", "")))
+                    payload["id_ocupacion"] = c_id6.text_input("Ocupación / Grado escolar:", value=datos_hc.get("id_ocupacion", paciente.get("ocupacion", "")))
+                    
+                    c_id7, c_id8 = st.columns([2, 1])
+                    payload["id_domicilio"] = c_id7.text_input("Domicilio completo:", value=datos_hc.get("id_domicilio", paciente.get("domicilio", "")))
+                    payload["id_emergencia"] = c_id8.text_input("Contacto de emergencia (Nombre y Tel):", value=datos_hc.get("id_emergencia", ""))
+                    
+                st.markdown("---")
+
+
+
+
+
                 
                 # ---------------------------------------------------------
                 # 1. PLANTILLA: PSICOLOGÍA ADULTOS
