@@ -287,14 +287,21 @@ else:
         st.title("📊 Resumen de la Clínica")
         st.write("Visión general del estado actual de Terintalia. *(Solo lectura)*")
         
-        # --- INICIO DE LA MODIFICACIÓN ---
+       # --- INICIO DE LA MODIFICACIÓN ---
+        todos_docs = db.collection("pacientes").get()
+        
         if rol in ["DIRECTOR", "RECEPCIONISTA"]:
-            pacientes_docs = db.collection("pacientes").get()
+            pacientes_docs = todos_docs
         else:
-            # Filtro para que el Especialista solo vea los suyos
-            # IMPORTANTE: Cambia "medico_asignado" por el nombre exacto de tu campo en Firebase
-            pacientes_docs = db.collection("pacientes").where("medico_asignado", "==", st.session_state.nombre).get()
+            # Filtro exacto que usa el Expediente Clínico (Busca por ID en el campo "med")
+            pacientes_docs = []
+            for doc in todos_docs:
+                if st.session_state.user_id in doc.to_dict().get("med", ""):
+                    pacientes_docs.append(doc)
         # --- FIN DE LA MODIFICACIÓN ---
+
+
+
         total_pac = len(pacientes_docs)
         pac_activos = sum(1 for p in pacientes_docs if p.to_dict().get("status") == "ACTIVO")
         pac_inactivos = total_pac - pac_activos
