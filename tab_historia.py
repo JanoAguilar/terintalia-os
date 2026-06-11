@@ -255,7 +255,6 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
 def render(db, paciente, id_pac):
     if 'conf_borrador' not in st.session_state: st.session_state.conf_borrador = False
     if 'conf_sello' not in st.session_state: st.session_state.conf_sello = False
-    if 'conf_pdf' not in st.session_state: st.session_state.conf_pdf = False
     if 'tmp_hc' not in st.session_state: st.session_state.tmp_hc = {}
 
     ref_hc = db.collection("pacientes").document(id_pac).collection("historia_clinica").document("unica")
@@ -280,41 +279,24 @@ def render(db, paciente, id_pac):
     else:
         tipo_plantilla = "PSICOLOGÍA ADULTOS"
 
-    # --- Cabecera de Control Fija ---
+    # --- Cabecera de Control Fija con Menú Flotante para PDF ---
     c_tit, c_pdf = st.columns([3, 1])
     with c_tit:
         st.markdown("<h3 style='color: #164032; margin-top: 0px;'>🏥 Historia Clínica</h3>", unsafe_allow_html=True)
     with c_pdf:
-        # Pre-botón que activa la compuerta de confirmación
-        if not st.session_state.conf_pdf:
-            if st.button("📥 Exportar a PDF", key="btn_pre_pdf", use_container_width=True):
-                st.session_state.conf_pdf = True
-                st.rerun()
-
-    # ==========================================
-    # PANTALLA DE VALIDACIÓN / CONFIRMACIÓN PDF
-    # ==========================================
-    if st.session_state.conf_pdf:
-        with st.container(border=True):
-            st.warning("❓ **¿Realmente deseas exportar esta Historia Clínica completa a formato PDF?**")
-            c_conf1, c_conf2 = st.columns(2)
-            with c_conf1:
-                archivo_pdf = generar_documento_pdf(paciente, datos_hc, tipo_plantilla)
-                # El botón real de descarga nativa de Streamlit
-                if st.download_button(
-                    label="✅ SÍ, GENERAR REPORTE",
-                    data=archivo_pdf,
-                    file_name=f"Expediente_{paciente.get('nombre', 'Paciente')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                    type="primary"
-                ):
-                    st.session_state.conf_pdf = False
-            with c_conf2:
-                if st.button("❌ CANCELAR", use_container_width=True):
-                    st.session_state.conf_pdf = False
-                    st.rerun()
-        st.markdown("---")
+        # st.popover crea el "aviso flotante" estético al dar clic
+        with st.popover("📥 Exportar a PDF", use_container_width=True):
+            st.markdown("<span style='font-size: 14px; font-weight: bold;'>¿Confirmas la descarga?</span>", unsafe_allow_html=True)
+            st.caption("Se generará el reporte clínico.")
+            archivo_pdf = generar_documento_pdf(paciente, datos_hc, tipo_plantilla)
+            st.download_button(
+                label="✅ SÍ, DESCARGAR",
+                data=archivo_pdf,
+                file_name=f"Expediente_{paciente.get('nombre', 'Paciente')}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary"
+            )
 
     # ==========================================
     # VISTA DE LECTURA (EXPEDIENTE SELLADO)
@@ -389,8 +371,6 @@ def render(db, paciente, id_pac):
                     c2.markdown(f"<span style='font-size:14px;'><b>Parentesco:</b> {paciente.get('contacto_emergencia_par', 'N/A')}</span>", unsafe_allow_html=True)
                     c3.markdown(f"<span style='font-size:14px;'><b>Tel. Emergencia:</b> {paciente.get('contacto_emergencia_tel', 'N/A')}</span>", unsafe_allow_html=True)
                 
-                st.markdown("---")
-                
                 # ---------------------------------------------------------
                 # 1. PLANTILLA: PSICOLOGÍA ADULTOS
                 # ---------------------------------------------------------
@@ -415,7 +395,7 @@ def render(db, paciente, id_pac):
                         payload["ad_meds"] = c4.text_area("Medicaciones actuales:", value=datos_hc.get("ad_meds", ""))
                         payload["ad_riesgo_suicida"] = st.text_area("Intentos suicidas, autolesiones o ideación actual:", value=datos_hc.get("ad_riesgo_suicida", ""))
                         payload["ad_sustancias"] = st.text_area("Consumo de alcohol u otras sustancias:", value=datos_hc.get("ad_sustancias", ""))
-                        payload["ad_trauma"] = st.text_area("Eventos traumáticos (abuso, negligencia, violence):", value=datos_hc.get("ad_trauma", ""))
+                        payload["ad_trauma"] = st.text_area("Eventos traumáticos (abuso, negligencia, violencia):", value=datos_hc.get("ad_trauma", ""))
                         st.markdown("---")
                         payload["ad_fam_comp"] = st.text_area("Composición familiar actual:", value=datos_hc.get("ad_fam_comp", ""))
                         payload["ad_fam_relacion"] = st.text_area("Relación con figuras parentales:", value=datos_hc.get("ad_fam_relacion", ""))
