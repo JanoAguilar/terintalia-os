@@ -30,17 +30,14 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
         pdf.set_font("helvetica", "I", 10)
         pdf.cell(w=0, h=6, txt="El expediente clinico aun esta vacio o en blanco.", border=0, ln=1)
     else:
-        # Extraemos e imprimimos todo lo que el especialista escribió
         llaves_ocultas = ["bloqueado", "firmado_por", "fecha_firma"]
         for key, value in datos_hc.items():
             if key not in llaves_ocultas and str(value).strip() != "":
-                # Limpiamos el nombre (ej. ad_motivo_principal -> Ad Motivo Principal)
                 nombre_campo = str(key).replace("_", " ").title()
                 
                 pdf.set_font("helvetica", "B", 10)
                 pdf.multi_cell(w=0, h=6, txt=f"{nombre_campo}:")
                 pdf.set_font("helvetica", "", 10)
-                # Convertimos a string para evitar errores con caracteres especiales
                 pdf.multi_cell(w=0, h=6, txt=str(value))
                 pdf.ln(2)
                 
@@ -53,16 +50,11 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
         pdf.cell(w=0, h=6, txt=f"Por: {datos_hc.get('firmado_por', '')}", border=0, ln=1)
         pdf.cell(w=0, h=6, txt=f"Fecha: {datos_hc.get('fecha_firma', '')}", border=0, ln=1)
 
-    # --- BLINDAJE DE EXPORTACIÓN ---
-    # Extraemos el archivo y evaluamos qué formato nos entregó la nube
     salida = pdf.output(dest="S")
-    
     if isinstance(salida, str):
-        # Si la nube lo entregó como texto, le forzamos la codificación correcta
         return salida.encode("latin-1")
-    
-    # Si la nube ya lo entregó como bytes (fpdf2 puro), lo pasamos directo
     return bytes(salida)
+
 # =========================================================
 # RENDERIZADO PRINCIPAL DE LA PESTAÑA
 # =========================================================
@@ -77,7 +69,7 @@ def render(db, paciente, id_pac):
     datos_hc = doc_hc.to_dict() if doc_hc.exists else {}
     bloqueado = datos_hc.get("bloqueado", False)
 
-    # Rutamos la plantilla ANTES para poder mandarla al PDF
+    # Ruteo Inteligente de Plantillas
     esp_upper = paciente.get("esp", "").upper()
     terapia = paciente.get("tipo_terapia", "")
     edad = int(paciente.get("edad", 0))
@@ -93,17 +85,12 @@ def render(db, paciente, id_pac):
     else:
         tipo_plantilla = "PSICOLOGÍA ADULTOS"
 
-    # =========================================================
-    # APARTADO I: FICHA DE IDENTIFICACIÓN Y BOTÓN PDF
-    # =========================================================
+    # --- CABECERA GLOBAL (Título y Botón de PDF siempre visibles) ---
     c_tit, c_pdf = st.columns([3, 1])
     with c_tit:
-        st.markdown("<h4 style='color: #164032; margin-top: 0px;'>📋 I. Ficha de Identificación y Datos Generales</h4>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color: #164032; margin-top: 0px;'>🏥 Historia Clínica</h3>", unsafe_allow_html=True)
     with c_pdf:
-        # Generamos el archivo PDF en la memoria
         archivo_pdf = generar_documento_pdf(paciente, datos_hc, tipo_plantilla)
-        
-        # Botón Real de Descarga
         st.download_button(
             label="📥 Exportar a PDF",
             data=archivo_pdf,
@@ -112,45 +99,36 @@ def render(db, paciente, id_pac):
             use_container_width=True
         )
 
-    with st.container(border=True):
-        # 👤 Datos Personales
-        st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>👤 Datos Personales</p>", unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        c1.write(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
-        c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-        c3.write(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
-        
-        c4, c5 = st.columns(2)
-        c4.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
-        c5.write(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
-        
-        st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-        
-        # 📞 Contacto y Dirección
-        st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>📞 Contacto y Dirección</p>", unsafe_allow_html=True)
-        c6, c7, c8 = st.columns(3)
-        c6.write(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
-        c7.write(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
-        c8.write(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
-        # LLAVE CORREGIDA: "direccion" en lugar de "domicilio"
-        st.write(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}") 
-        
-        st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-        
-        # 🚨 Emergencia
-        st.markdown("<p style='color: #D35400; font-weight: bold; margin-bottom: 5px;'>🚨 Emergencia</p>", unsafe_allow_html=True)
-        c9, c10, c11 = st.columns(3)
-        # LLAVES CORREGIDAS PARA EMERGENCIA
-        c9.write(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
-        c10.write(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
-        c11.write(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
-        
-    st.write("")
-
     # ==========================================
     # VISTA DE LECTURA (CUANDO YA ESTÁ SELLADO)
     # ==========================================
     if bloqueado:
+        # Apartado I de solo lectura para la vista firmada
+        st.markdown("<h5 style='color: #164032;'>I. Ficha de Identificación y Datos Generales</h5>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("**Datos Personales**")
+            c1, c2, c3 = st.columns(3)
+            c1.write(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
+            c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
+            c3.write(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
+            c4, c5 = st.columns(2)
+            c4.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
+            c5.write(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
+            st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+            st.markdown("**Contacto y Dirección**")
+            c6, c7, c8 = st.columns(3)
+            c6.write(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
+            c7.write(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
+            c8.write(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
+            st.write(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
+            st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+            st.markdown("**Emergencia**")
+            c9, c10, c11 = st.columns(3)
+            c9.write(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
+            c10.write(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
+            c11.write(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
+        
+        st.write("")
         st.success("🔒 **HISTORIA CLÍNICA CERRADA Y FIRMADA LEGALMENTE**")
         st.caption(f"Sellado por: {datos_hc.get('firmado_por')} el {datos_hc.get('fecha_firma')} | Formato: {tipo_plantilla}")
         
@@ -171,6 +149,43 @@ def render(db, paciente, id_pac):
             
             with st.form("form_hc"):
                 payload = {}
+                
+                # =========================================================
+                # APARTADO I: FICHA DE IDENTIFICACIÓN (Ubicado arriba de la sección II)
+                # =========================================================
+                st.markdown("<h5 style='color: #164032; margin-top: 5px;'>I. Ficha de Identificación y Datos Generales</h5>", unsafe_allow_html=True)
+                with st.container(border=True):
+                    # Bloque: Datos Personales
+                    st.markdown("**Datos Personales**")
+                    c1, c2, c3 = st.columns(3)
+                    c1.write(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
+                    c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
+                    c3.write(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
+                    
+                    c4, c5 = st.columns(2)
+                    c4.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
+                    c5.write(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
+                    
+                    st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+                    
+                    # Bloque: Contacto y Dirección
+                    st.markdown("**Contacto y Dirección**")
+                    c6, c7, c8 = st.columns(3)
+                    c6.write(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
+                    c7.write(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
+                    c8.write(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
+                    st.write(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
+                    
+                    st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+                    
+                    # Bloque: Emergencia
+                    st.markdown("**Emergencia**")
+                    c9, c10, c11 = st.columns(3)
+                    c9.write(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
+                    c10.write(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
+                    c11.write(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
+                
+                st.markdown("---")
                 
                 # ---------------------------------------------------------
                 # 1. PLANTILLA: PSICOLOGÍA ADULTOS
@@ -225,7 +240,7 @@ def render(db, paciente, id_pac):
                         payload["ad_precipitantes"] = c2.text_area("Factores precipitantes:", value=datos_hc.get("ad_precipitantes", ""))
                         c3, c4 = st.columns(2)
                         payload["ad_mantenedores"] = c3.text_area("Factores mantenedores:", value=datos_hc.get("ad_mantenedores", ""))
-                        payload["ad_protectores"] = c4.text_area("Factores protectores:", value=datos_hc.get("ad_protectores", ""))
+                        payload["f_protectores"] = c4.text_area("Factores protectores:", value=datos_hc.get("f_protectores", ""))
                         payload["ad_hipotesis"] = st.text_area("Hipótesis clínica inicial:", value=datos_hc.get("ad_hipotesis", ""))
                         st.markdown("---")
                         payload["ad_dx"] = st.text_area("Diagnóstico(s) DSM-5/CIE-11 y Severidad:", value=datos_hc.get("ad_dx", ""))
@@ -259,7 +274,7 @@ def render(db, paciente, id_pac):
 
                     with st.expander("VI. Ant. Médicos y VII. Historia Familiar"):
                         payload["ij_medicos"] = st.text_area("Enfermedades médicas y tratamientos actuales:", value=datos_hc.get("ij_medicos", ""))
-                        payload["ij_psi"] = st.text_area("Tratamientos psico/psiquiátricos previos y trauma:", value=datos_hc.get("ij_psi", ""))
+                        payload["ij_psi"] = st.text_area("Tratamientos phospho/psiquiátricos previos y trauma:", value=datos_hc.get("ij_psi", ""))
                         payload["ij_riesgos"] = st.text_area("Intentos autolesivos / Sustancias / Trauma / ASI:", value=datos_hc.get("ij_riesgos", ""))
                         st.markdown("---")
                         payload["ij_fam_comp"] = st.text_area("Composición familiar y personas con quien vive:", value=datos_hc.get("ij_fam_comp", ""))
