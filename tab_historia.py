@@ -9,26 +9,37 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
     pdf = FPDF()
     pdf.add_page()
     
-    # Encabezado
+    # Encabezado Principal
     pdf.set_font("helvetica", "B", 16)
     pdf.cell(w=0, h=10, txt="EXPEDIENTE CLINICO DIGITAL", border=0, ln=1, align="C")
     pdf.ln(5)
     
-    # Datos Personales
+    # Apartado I: Datos de Identificación en el PDF
     pdf.set_font("helvetica", "B", 12)
     pdf.cell(w=0, h=8, txt="I. Ficha de Identificacion y Datos Generales", border=0, ln=1)
     pdf.set_font("helvetica", "", 10)
-    pdf.multi_cell(w=0, h=6, txt=f"Paciente: {paciente.get('nombre', 'N/A')}\nEdad: {paciente.get('edad', 'N/A')} | Sexo: {paciente.get('sexo', 'N/A')}\nFolio: {paciente.get('id_p', 'N/A')} | Servicio: {tipo_plantilla}")
+    
+    info_general = (
+        f"Nombre Completo: {paciente.get('nombre', 'N/A')}\n"
+        f"Edad: {paciente.get('edad', 'N/A')} anos | Sexo: {paciente.get('sexo', 'N/A')} | Estado Civil: {paciente.get('estado_civil', 'N/A')}\n"
+        f"Escolaridad: {paciente.get('escolaridad', 'N/A')} | Ocupacion: {paciente.get('ocupacion', 'N/A')}\n"
+        f"Telefono Celular: {paciente.get('telefono', 'N/A')} | Telefono Casa: {paciente.get('tel_casa', 'N/A')}\n"
+        f"Correo Electronico: {paciente.get('correo', 'N/A')}\n"
+        f"Domicilio Completo: {paciente.get('direccion', 'N/A')}\n"
+        f"Contacto de Emergencia: {paciente.get('contacto_emergencia_nom', 'N/A')} ({paciente.get('contacto_emergencia_par', 'N/A')}) - Tel: {paciente.get('contacto_emergencia_tel', 'N/A')}\n"
+        f"Folio del Expediente: {paciente.get('id_p', 'N/A')} | Formato Asignado: {tipo_plantilla}"
+    )
+    pdf.multi_cell(w=0, h=6, txt=info_general)
     pdf.ln(5)
 
-    # Registro Clínico (Las notas del psicólogo)
+    # Apartado II en adelante: Registro Clínico (Las notas del especialista)
     pdf.set_font("helvetica", "B", 12)
     pdf.cell(w=0, h=8, txt="II. Registro Clinico de la Sesion", border=0, ln=1)
     pdf.ln(2)
     
     if not datos_hc:
         pdf.set_font("helvetica", "I", 10)
-        pdf.cell(w=0, h=6, txt="El expediente clinico aun esta vacio o en blanco.", border=0, ln=1)
+        pdf.cell(w=0, h=6, txt="El expediente clinico aun esta vacio o en modo borrador.", border=0, ln=1)
     else:
         llaves_ocultas = ["bloqueado", "firmado_por", "fecha_firma"]
         for key, value in datos_hc.items():
@@ -41,14 +52,14 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
                 pdf.multi_cell(w=0, h=6, txt=str(value))
                 pdf.ln(2)
                 
-    # Firmas Legales (Solo si ya se selló)
+    # Bloque de Firmas Legales (Solo si el expediente ya fue cerrado)
     if datos_hc.get("bloqueado"):
         pdf.ln(10)
         pdf.set_font("helvetica", "B", 10)
-        pdf.cell(w=0, h=6, txt="--- DOCUMENTO FIRMADO Y SELLADO ---", border=0, ln=1, align="C")
+        pdf.cell(w=0, h=6, txt="--- DOCUMENTO FIRMADO Y SELLADO DIGITALMENTE ---", border=0, ln=1, align="C")
         pdf.set_font("helvetica", "", 10)
-        pdf.cell(w=0, h=6, txt=f"Por: {datos_hc.get('firmado_por', '')}", border=0, ln=1)
-        pdf.cell(w=0, h=6, txt=f"Fecha: {datos_hc.get('fecha_firma', '')}", border=0, ln=1)
+        pdf.cell(w=0, h=6, txt=f"Firmado por: {datos_hc.get('firmado_por', '')}", border=0, ln=1)
+        pdf.cell(w=0, h=6, txt=f"Fecha y Hora de Cierre: {datos_hc.get('fecha_firma', '')}", border=0, ln=1)
 
     salida = pdf.output(dest="S")
     if isinstance(salida, str):
@@ -69,7 +80,7 @@ def render(db, paciente, id_pac):
     datos_hc = doc_hc.to_dict() if doc_hc.exists else {}
     bloqueado = datos_hc.get("bloqueado", False)
 
-    # Ruteo Inteligente de Plantillas
+    # Ruteo Inteligente de Plantillas Clínicas
     esp_upper = paciente.get("esp", "").upper()
     terapia = paciente.get("tipo_terapia", "")
     edad = int(paciente.get("edad", 0))
@@ -85,7 +96,7 @@ def render(db, paciente, id_pac):
     else:
         tipo_plantilla = "PSICOLOGÍA ADULTOS"
 
-    # --- CABECERA GLOBAL (Título y Botón de PDF siempre visibles) ---
+    # --- Cabecera de Control Fija ---
     c_tit, c_pdf = st.columns([3, 1])
     with c_tit:
         st.markdown("<h3 style='color: #164032; margin-top: 0px;'>🏥 Historia Clínica</h3>", unsafe_allow_html=True)
@@ -100,34 +111,31 @@ def render(db, paciente, id_pac):
         )
 
     # ==========================================
-    # VISTA DE LECTURA (CUANDO YA ESTÁ SELLADO)
+    # VISTA DE LECTURA (EXPEDIENTE SELLADO)
     # ==========================================
     if bloqueado:
-        # Apartado I de solo lectura para la vista firmada
-        st.markdown("<h5 style='color: #164032;'>I. Ficha de Identificación y Datos Generales</h5>", unsafe_allow_html=True)
-        with st.container(border=True):
-            st.markdown("**Datos Personales**")
+        # Apartado I Colapsable para concordancia visual en modo lectura
+        with st.expander("I. Ficha de Identificación y Datos Generales", expanded=False):
             c1, c2, c3 = st.columns(3)
-            c1.write(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
-            c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-            c3.write(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
-            c4, c5 = st.columns(2)
-            c4.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
-            c5.write(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
-            st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-            st.markdown("**Contacto y Dirección**")
-            c6, c7, c8 = st.columns(3)
-            c6.write(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
-            c7.write(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
-            c8.write(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
-            st.write(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
-            st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-            st.markdown("**Emergencia**")
-            c9, c10, c11 = st.columns(3)
-            c9.write(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
-            c10.write(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
-            c11.write(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
-        
+            c1.markdown(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
+            c2.markdown(f"**Edad:** {paciente.get('edad', 'N/A')} años")
+            c3.markdown(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
+            
+            c1, c2, c3 = st.columns(3)
+            c1.markdown(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
+            c2.markdown(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
+            c3.markdown(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
+            
+            c1, c2, c3 = st.columns(3)
+            c1.markdown(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
+            c2.markdown(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
+            c3.markdown(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
+            
+            c1, c2, c3 = st.columns(3)
+            c1.markdown(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
+            c2.markdown(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
+            c3.markdown(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
+
         st.write("")
         st.success("🔒 **HISTORIA CLÍNICA CERRADA Y FIRMADA LEGALMENTE**")
         st.caption(f"Sellado por: {datos_hc.get('firmado_por')} el {datos_hc.get('fecha_firma')} | Formato: {tipo_plantilla}")
@@ -145,45 +153,34 @@ def render(db, paciente, id_pac):
     else:
         if not st.session_state.conf_borrador and not st.session_state.conf_sello:
             st.info(f"📝 **MODO EDICIÓN (Borrador) | Formato: {tipo_plantilla}**")
-            st.caption("Complete todos los campos. Si una pregunta no aplica, escriba 'N/A'. Puede expandir cualquier caja arrastrando su esquina inferior derecha.")
+            st.caption("Complete todos los campos. Si una pregunta no aplica, escriba 'N/A'.")
             
             with st.form("form_hc"):
                 payload = {}
                 
                 # =========================================================
-                # APARTADO I: FICHA DE IDENTIFICACIÓN (Ubicado arriba de la sección II)
+                # APARTADO I: FICHA DE IDENTIFICACIÓN (Compacto y Colapsable)
                 # =========================================================
-                st.markdown("<h5 style='color: #164032; margin-top: 5px;'>I. Ficha de Identificación y Datos Generales</h5>", unsafe_allow_html=True)
-                with st.container(border=True):
-                    # Bloque: Datos Personales
-                    st.markdown("**Datos Personales**")
+                with st.expander("I. Ficha de Identificación y Datos Generales", expanded=True):
                     c1, c2, c3 = st.columns(3)
-                    c1.write(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
-                    c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-                    c3.write(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
+                    c1.markdown(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
+                    c2.markdown(f"**Edad:** {paciente.get('edad', 'N/A')} años")
+                    c3.markdown(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
                     
-                    c4, c5 = st.columns(2)
-                    c4.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
-                    c5.write(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
+                    c1, c2, c3 = st.columns(3)
+                    c1.markdown(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
+                    c2.markdown(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
+                    c3.markdown(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
                     
-                    st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+                    c1, c2, c3 = st.columns(3)
+                    c1.markdown(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
+                    c2.markdown(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
+                    c3.markdown(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
                     
-                    # Bloque: Contacto y Dirección
-                    st.markdown("**Contacto y Dirección**")
-                    c6, c7, c8 = st.columns(3)
-                    c6.write(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
-                    c7.write(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
-                    c8.write(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
-                    st.write(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
-                    
-                    st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-                    
-                    # Bloque: Emergencia
-                    st.markdown("**Emergencia**")
-                    c9, c10, c11 = st.columns(3)
-                    c9.write(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
-                    c10.write(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
-                    c11.write(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
+                    c1, c2, c3 = st.columns(3)
+                    c1.markdown(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
+                    c2.markdown(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
+                    c3.markdown(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
                 
                 st.markdown("---")
                 
@@ -335,7 +332,7 @@ def render(db, paciente, id_pac):
 
                     with st.expander("IV. Hábitos Alimenticios y Recordatorio 24h"):
                         c1, c2 = st.columns(2)
-                        payload["nut_horarios"] = c1.text_area("Comidas al día, Horarios y Lugares:", value=datos_hc.get("nut_horarios", ""))
+                        payload["nut_horarios"] = st.text_area("Comidas al día, Horarios y Lugares:", value=datos_hc.get("nut_horarios", ""))
                         payload["nut_pref"] = c2.text_area("Preferencias y aversiones:", value=datos_hc.get("nut_pref", ""))
                         payload["nut_frecuencia"] = st.text_area("Frecuencia (Frutas, verduras, cereales, lácteos, grasas, postres):", value=datos_hc.get("nut_frecuencia", ""))
                         payload["nut_rec24"] = st.text_area("Recordatorio de 24 horas:", value=datos_hc.get("nut_rec24", ""))
