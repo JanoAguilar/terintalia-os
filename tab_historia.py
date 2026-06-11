@@ -246,7 +246,7 @@ def render(db, paciente, id_pac):
 
                     with st.expander("IV. Hábitos Alimenticios y Recordatorio 24h"):
                         c1, c2 = st.columns(2)
-                        payload["nut_horarios"] = c1.text_area("Comidas al día, Horarios y Lugares:", value=nut_horarios, "")
+                        payload["nut_horarios"] = c1.text_area("Comidas al día, Horarios y Lugares:", value=datos_hc.get("nut_horarios", ""))
                         payload["nut_pref"] = c2.text_area("Preferencias y aversiones:", value=datos_hc.get("nut_pref", ""))
                         payload["nut_frecuencia"] = st.text_area("Frecuencia (Frutas, verduras, cereales, lácteos, grasas, postres):", value=datos_hc.get("nut_frecuencia", ""))
                         payload["nut_rec24"] = st.text_area("Recordatorio de 24 horas:", value=datos_hc.get("nut_rec24", ""))
