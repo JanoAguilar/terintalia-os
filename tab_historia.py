@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 from datetime import datetime
 from fpdf import FPDF
 
@@ -176,12 +177,17 @@ def limpiar_texto_pdf(texto):
     return t_limpio.encode('latin-1', 'ignore').decode('latin-1')
 
 # =========================================================
-# FUNCIÓN: FABRICAR EL DOCUMENTO PDF CON SANGRÍAS EXPLICITAS
+# FUNCIÓN: FABRICAR EL DOCUMENTO PDF CON LOGOTIPO
 # =========================================================
 def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
     pdf = FPDF()
     pdf.set_margins(20, 20, 20)
     pdf.add_page()
+    
+    # --- LOGOTIPO FLOTANTE SUPERIOR DERECHO ---
+    # Coloca el archivo 'logo.png' alineado al margen derecho (ancho 30mm)
+    if os.path.exists("logo.png"):
+        pdf.image("logo.png", x=160, y=10, w=30)
     
     # 1. Encabezado Corporativo Principal
     pdf.set_font("helvetica", "B", 16)
@@ -284,7 +290,7 @@ def render(db, paciente, id_pac):
     with c_tit:
         st.markdown("<h3 style='color: #164032; margin-top: 0px;'>🏥 Historia Clínica</h3>", unsafe_allow_html=True)
     with c_pdf:
-        # st.popover crea el "aviso flotante" estético al dar clic
+        # Menú flotante compacto tipo popover
         with st.popover("📥 Exportar a PDF", use_container_width=True):
             st.markdown("<span style='font-size: 14px; font-weight: bold;'>¿Confirmas la descarga?</span>", unsafe_allow_html=True)
             st.caption("Se generará el reporte clínico.")
@@ -438,7 +444,7 @@ def render(db, paciente, id_pac):
                     with st.expander("II. Datos de Padres/Tutores e III. Motivo", expanded=True):
                         c1, c2 = st.columns(2)
                         payload["ij_padre"] = st.text_area("Datos del Padre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_padre", ""))
-                        payload["ij_madre"] = st.text_area("Datos de la Madre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_madre", ""))
+                        payload["ij_madre"] = c2.text_area("Datos de la Madre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_madre", ""))
                         payload["ij_acompanante"] = st.text_area("Persona que acompaña al menor:", value=datos_hc.get("ij_acompanante", ""))
                         st.markdown("---")
                         payload["ij_motivo_padres"] = st.text_area("Motivo referido por padres/cuidadores:", value=datos_hc.get("ij_motivo_padres", ""))
