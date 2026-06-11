@@ -3,63 +3,254 @@ from datetime import datetime
 from fpdf import FPDF
 
 # =========================================================
-# FUNCIÓN: FABRICAR EL DOCUMENTO PDF (Versión Universal)
+# CONFIGURACIÓN ESPECÍFICA DE MAPEO PARA EL REPORTE PDF
+# =========================================================
+MAPEO_PLANTILLAS = {
+    "PSICOLOGÍA ADULTOS": [
+        ("II. Motivo de Consulta e III. Historia del Problema", [
+            ("ad_motivo_principal", "Motivo principal de consulta"),
+            ("ad_sintomas", "Síntomas actuales"),
+            ("ad_expectativas", "Expectativas del paciente"),
+            ("ad_inicio", "Inicio del problema"),
+            ("ad_curso", "Curso o evolución"),
+            ("ad_eventos", "Eventos significativos asociados"),
+            ("ad_factores", "Factores desencadenantes o agravantes"),
+            ("ad_impacto", "Impacto (Personal, Familiar, Social, Laboral)")
+        ]),
+        ("IV. Antecedentes Personales y V. Historia Familiar", [
+            ("ad_ant_medicos", "Antecedentes médicos relevantes"),
+            ("ad_ant_psiq", "Tratamiento psiquiátrico previo"),
+            ("ad_ant_psico", "Tratamientos psicológicos previos"),
+            ("ad_meds", "Medicaciones actuales"),
+            ("ad_riesgo_suicida", "Intentos suicidas, autolesiones o ideación actual"),
+            ("ad_sustancias", "Consumo de alcohol u otras sustancias"),
+            ("ad_trauma", "Eventos traumáticos (abuso, negligencia, violencia)"),
+            ("ad_fam_comp", "Composición familiar actual"),
+            ("ad_fam_relacion", "Relación con figuras parentales"),
+            ("ad_fam_ant", "Antecedentes familiares (salud mental, adicciones)")
+        ]),
+        ("VI. Funcionamiento Actual y VII. Estado Mental", [
+            ("ad_sueno", "Sueño"),
+            ("ad_alimentacion", "Alimentación y Apetito"),
+            ("ad_fisica", "Actividad física"),
+            ("ad_social", "Área social y Red de apoyo"),
+            ("ad_emocional", "Autoestima y Regulación emocional"),
+            ("ad_apariencia", "Apariencia y actitud"),
+            ("ad_animo", "Estado de ánimo y afecto"),
+            ("ad_pensamiento", "Lenguaje, pensamiento, percepción y cognición"),
+            ("ad_juicio", "Juicio, introspección y signos de disociación")
+        ]),
+        ("VIII. Clinimetría", [
+            ("ad_clinimetria", "Registro de Pruebas aplicadas (Prueba, Fecha, Resultado)")
+        ]),
+        ("IX. Formulación, X. Diagnóstico y XI. Plan", [
+            ("ad_predisponentes", "Factores predisponentes"),
+            ("ad_precipitantes", "Factores precipitantes"),
+            ("ad_mantenedores", "Factores mantenedores"),
+            ("f_protectores", "Factores protectores"),
+            ("ad_hipotesis", "Hipótesis clínica inicial"),
+            ("ad_dx", "Diagnóstico(s) DSM-5/CIE-11 y Severidad"),
+            ("ad_plan", "Plan de intervención, modelos y objetivos"),
+            ("ad_psiquiatria", "¿Necesidad de evaluación psiquiátrica?")
+        ])
+    ],
+    "PSICOLOGÍA INFANTOJUVENIL": [
+        ("II. Datos de Padres/Tutores e III. Motivo", [
+            ("ij_padre", "Datos del Padre (Nombre, Edad, Ocupación, Tel)"),
+            ("ij_madre", "Datos de la Madre (Nombre, Edad, Ocupación, Tel)"),
+            ("ij_acompanante", "Persona que acompaña al menor"),
+            ("ij_motivo_padres", "Motivo referido por padres o cuidadores"),
+            ("ij_motivo_menor", "Motivo referido por el menor"),
+            ("ij_sintomas", "Conductas/síntomas observados y tiempo de evolución"),
+            ("ij_impacto", "Impacto (Familiar, Escolar, Social)")
+        ]),
+        ("IV. Historia y V. Perinatales/Desarrollo", [
+            ("ij_hist_inicio", "Inicio del problema y eventos asociados"),
+            ("ij_estrategias", "Estrategias utilizadas previamente"),
+            ("ij_embarazo", "Embarazo (Planeado, complicaciones)"),
+            ("ij_parto", "Parto (Natural/Cesárea, complicaciones)"),
+            ("ij_desarrollo", "Desarrollo temprano (Palabras, marcha, esfínteres)"),
+            ("ij_apego", "Apego temprano y cuidadores principales")
+        ]),
+        ("VI. Ant. Médicos y VII. Historia Familiar", [
+            ("ij_medicos", "Enfermedades médicas y tratamientos actuales"),
+            ("ij_psi", "Tratamientos previos y trauma"),
+            ("ij_riesgos", "Intentos autolesivos / Sustancias / Trauma"),
+            ("ij_fam_comp", "Composición familiar y personas con quien vive"),
+            ("ij_fam_dinamica", "Relación parental y estilo de crianza"),
+            ("ij_fam_ant", "Antecedentes familiares relevantes")
+        ]),
+        ("VIII. Funcionamiento Actual y IX. Escolar", [
+            ("ij_sueno", "Sueño y Alimentación"),
+            ("ij_emocional", "Regulación emocional y conducta en casa"),
+            ("ij_social", "Relaciones (Hermanos, Pares) y Recreación"),
+            ("ij_esc_desempeno", "Desempeño académico y conducta en aula"),
+            ("ij_esc_social", "Relación con profesores y compañeros")
+        ]),
+        ("X. Estado Mental y XI. Clinimetría", [
+            ("ij_mental", "Estado mental (Apariencia, afecto, juego)"),
+            ("ij_clinimetria", "Clinimetría (Pruebas, Resultados e Interpretación)")
+        ]),
+        ("XII. Formulación, XIII. Diagnóstico y XIV. Plan", [
+            ("ij_formulacion", "Formulación clínica (Predisponentes, protectores)"),
+            ("ij_dx", "Diagnóstico DSM-5/CIE-11 y Riesgos"),
+            ("ij_plan", "Plan de intervención, trabajo con padres y objetivos")
+        ])
+    ],
+    "TERAPIA DE PAREJA": [
+        ("II. Datos de Identificación de la Relación y Motivo", [
+            ("p_tiempos", "Tiempo de relación / Convivencia / Hijos"),
+            ("p_motivo_pareja", "Motivo principal referido por la pareja"),
+            ("p_expectativas", "Expectativas del proceso terapéutico")
+        ]),
+        ("III. Historia y IV. Dinámica Actual", [
+            ("p_historia", "Historia de la relación (Inicio, hitos significativos)"),
+            ("p_fortalezas", "Fortalezas de la relación"),
+            ("p_conflictos", "Principales conflictos y temas recurrentes")
+        ]),
+        ("V. Patrones, VI. Violencia y VII. Plan", [
+            ("p_patrones", "Patrones de interacción y escalada de conflictos"),
+            ("p_violencia", "Presencia de violencia (Física, Psicológica, Económica)"),
+            ("p_plan", "Plan de intervención (Modelo y Frecuencia)")
+        ])
+    ],
+    "NUTRICIÓN": [
+        ("II. Motivo y III. Antecedentes Personales", [
+            ("nut_motivo", "Motivo de consulta"),
+            ("nut_medicos", "Antecedentes Médicos, Quirúrgicos y Familiares"),
+            ("nut_alergias", "Alergias, Intolerancias y Signos físicos"),
+            ("nut_meds", "Medicamentos, Suplementos, Tabaco o Drogas")
+        ]),
+        ("IV. Hábitos Alimenticios y Recordatorio 24h", [
+            ("nut_horarios", "Comidas al día, Horarios y Lugares de consumo"),
+            ("nut_pref", "Preferencias y aversiones alimentarias"),
+            ("nut_frecuencia", "Frecuencia de consumo por grupos alimenticios"),
+            ("nut_rec24", "Recordatorio de 24 horas completo")
+        ]),
+        ("V. Actividad, VI. Emocional y VII. Sueño", [
+            ("nut_actividad", "Actividad física (Tipo, frecuencia, intensidad)"),
+            ("nut_emocional", "Estado emocional (Comer por estrés, atracones)"),
+            ("nut_sueno", "Calidad del sueño y horas de descanso")
+        ]),
+        ("VIII. Antropometría, IX. Objetivos y X. Plan", [
+            ("nut_peso", "Peso actual (kg)"),
+            ("nut_talla", "Estatura / Talla (cm)"),
+            ("nut_imc", "Índice de Masa Corporal (IMC)"),
+            ("nut_grasa", "% Grasa / Masa Muscular"),
+            ("nut_cintura", "Circunferencias corporales"),
+            ("nut_objetivos", "Objetivos del paciente"),
+            ("nut_plan", "Plan nutricional inicial y observaciones")
+        ])
+    ],
+    "FISIOTERAPIA": [
+        ("II. Motivo e III. Historia del Problema", [
+            ("f_motivo", "Problema principal y Zona anatómica afectada"),
+            ("f_evolucion", "Tiempo de evolución (Agudo, Subagudo, Crónico)"),
+            ("f_mecanismo", "Inicio y Mecanismo de lesión"),
+            ("f_tratamientos", "Tratamientos previos y Estudios médicos realizados")
+        ]),
+        ("IV. Antecedentes y V. Evaluación Funcional", [
+            ("f_ant", "Enfermedades, cirugías, medicamentos y lesiones previas"),
+            ("f_dolor_eva", "Dolor reportado (Escala EVA 0-10)"),
+            ("f_dolor_tipo", "Tipo de dolor (punzante, opresivo, quemante)"),
+            ("f_factores", "Factores que aumentan o alivian el dolor")
+        ]),
+        ("VI. Exploración, VII. Diagnóstico e VIII. Plan", [
+            ("f_exploracion", "Inspección, Palpación, Rango de movimiento y Fuerza"),
+            ("f_pruebas", "Pruebas especiales y Limitaciones funcionales"),
+            ("f_dx", "Diagnóstico fisioterapéutico"),
+            ("f_plan", "Objetivos, Intervenciones (manual, ejercicio) y Frecuencia")
+        ])
+    ]
+}
+
+def limpiar_texto_pdf(texto):
+    """Sanitiza strings de entrada para evitar fallas de codificación en FPDF"""
+    reemplazos = {
+        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+        'ñ': 'n', 'Ñ': 'N', '¿': '', '📝': '', '🔒': '', '📋': ''
+    }
+    t_limpio = str(texto)
+    for k, v in reemplazos.items():
+        t_limpio = t_limpio.replace(k, v)
+    return t_limpio.encode('latin-1', 'ignore').decode('latin-1')
+
+# =========================================================
+# FUNCIÓN: FABRICAR EL DOCUMENTO PDF CON SANGRÍAS EXPLICITAS
 # =========================================================
 def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
     pdf = FPDF()
+    pdf.set_margins(20, 20, 20)
     pdf.add_page()
     
-    # Encabezado Principal
+    # 1. Encabezado Corporativo Principal
     pdf.set_font("helvetica", "B", 16)
-    pdf.cell(w=0, h=10, txt="EXPEDIENTE CLINICO DIGITAL", border=0, ln=1, align="C")
+    pdf.cell(w=0, h=10, txt=limpiar_texto_pdf("EXPEDIENTE CLÍNICO DIGITAL"), border=0, ln=1, align="C")
     pdf.ln(5)
     
-    # Apartado I: Datos de Identificación en el PDF
+    # 2. Apartado I: Ficha de Identificación
     pdf.set_font("helvetica", "B", 12)
-    pdf.cell(w=0, h=8, txt="I. Ficha de Identificacion y Datos Generales", border=0, ln=1)
+    pdf.cell(w=0, h=8, txt=limpiar_texto_pdf("I. Ficha de Identificación y Datos Generales"), border=0, ln=1)
+    
+    # Sangría de bloque de datos generales (Margen izquierdo a 25)
+    pdf.set_left_margin(25)
     pdf.set_font("helvetica", "", 10)
     
     info_general = (
         f"Nombre Completo: {paciente.get('nombre', 'N/A')}\n"
         f"Edad: {paciente.get('edad', 'N/A')} anos | Sexo: {paciente.get('sexo', 'N/A')} | Estado Civil: {paciente.get('estado_civil', 'N/A')}\n"
-        f"Escolaridad: {paciente.get('escolaridad', 'N/A')} | Ocupacion: {paciente.get('ocupacion', 'N/A')}\n"
-        f"Telefono Celular: {paciente.get('telefono', 'N/A')} | Telefono Casa: {paciente.get('tel_casa', 'N/A')}\n"
-        f"Correo Electronico: {paciente.get('correo', 'N/A')}\n"
+        f"Escolaridad: {paciente.get('escolaridad', 'N/A')} | Ocupación: {paciente.get('ocupacion', 'N/A')}\n"
+        f"Teléfono Celular: {paciente.get('telefono', 'N/A')} | Teléfono Casa: {paciente.get('tel_casa', 'N/A')}\n"
+        f"Correo Electrónico: {paciente.get('correo', 'N/A')}\n"
         f"Domicilio Completo: {paciente.get('direccion', 'N/A')}\n"
         f"Contacto de Emergencia: {paciente.get('contacto_emergencia_nom', 'N/A')} ({paciente.get('contacto_emergencia_par', 'N/A')}) - Tel: {paciente.get('contacto_emergencia_tel', 'N/A')}\n"
-        f"Folio del Expediente: {paciente.get('id_p', 'N/A')} | Formato Asignado: {tipo_plantilla}"
+        f"Folio del Expediente: {paciente.get('id_p', 'N/A')} | Formato de Plantilla: {tipo_plantilla}"
     )
-    pdf.multi_cell(w=0, h=6, txt=info_general)
-    pdf.ln(5)
+    pdf.multi_cell(w=165, h=5, txt=limpiar_texto_pdf(info_general))
+    pdf.set_left_margin(20)
+    pdf.ln(6)
 
-    # Apartado II en adelante: Registro Clínico (Las notas del especialista)
-    pdf.set_font("helvetica", "B", 12)
-    pdf.cell(w=0, h=8, txt="II. Registro Clinico de la Sesion", border=0, ln=1)
-    pdf.ln(2)
+    # 3. Apartados II en Adelante (Estructuración Dinámica por Plantilla)
+    secciones = MAPEO_PLANTILLAS.get(tipo_plantilla, [])
     
-    if not datos_hc:
-        pdf.set_font("helvetica", "I", 10)
-        pdf.cell(w=0, h=6, txt="El expediente clinico aun esta vacio o en modo borrador.", border=0, ln=1)
-    else:
-        llaves_ocultas = ["bloqueado", "firmado_por", "fecha_firma"]
-        for key, value in datos_hc.items():
-            if key not in llaves_ocultas and str(value).strip() != "":
-                nombre_campo = str(key).replace("_", " ").title()
+    for titulo_seccion, campos in secciones:
+        pdf.set_font("helvetica", "B", 12)
+        pdf.cell(w=0, h=8, txt=limpiar_texto_pdf(titulo_seccion), border=0, ln=1)
+        pdf.ln(1)
+        
+        for key, etiqueta_campo in campos:
+            # RASTREADOR: Busca en base de datos o en la sesión en vivo actual
+            valor_campo = datos_hc.get(key, "")
+            if not str(valor_campo).strip() and "tmp_hc" in st.session_state:
+                valor_campo = st.session_state.tmp_hc.get(key, "")
+            
+            if not str(valor_campo).strip():
+                valor_campo = "N/A"
                 
-                pdf.set_font("helvetica", "B", 10)
-                pdf.multi_cell(w=0, h=6, txt=f"{nombre_campo}:")
-                pdf.set_font("helvetica", "", 10)
-                pdf.multi_cell(w=0, h=6, txt=str(value))
-                pdf.ln(2)
+            # Sangría Nivel 1: Pregunta / Campo (Margen 25)
+            pdf.set_left_margin(25)
+            pdf.set_font("helvetica", "B", 10)
+            pdf.cell(w=0, h=6, txt=limpiar_texto_pdf(f"{etiqueta_campo}:"), border=0, ln=1)
+            
+            # Sangría Nivel 2: Respuesta / Contenido (Margen 30 para el bloque de texto)
+            pdf.set_left_margin(30)
+            pdf.set_font("helvetica", "", 10)
+            pdf.multi_cell(w=155, h=5, txt=limpiar_texto_pdf(valor_campo))
+            pdf.ln(2)
+            
+        # Restablece margen base al terminar la sección
+        pdf.set_left_margin(20)
+        pdf.ln(3)
                 
-    # Bloque de Firmas Legales (Solo si el expediente ya fue cerrado)
+    # 4. Bloque de Validación Legal de Firmas
     if datos_hc.get("bloqueado"):
         pdf.ln(10)
         pdf.set_font("helvetica", "B", 10)
-        pdf.cell(w=0, h=6, txt="--- DOCUMENTO FIRMADO Y SELLADO DIGITALMENTE ---", border=0, ln=1, align="C")
+        pdf.cell(w=0, h=6, txt=limpiar_texto_pdf("--- DOCUMENTO FIRMADO Y SELLADO DIGITALMENTE ---"), border=0, ln=1, align="C")
         pdf.set_font("helvetica", "", 10)
-        pdf.cell(w=0, h=6, txt=f"Firmado por: {datos_hc.get('firmado_por', '')}", border=0, ln=1)
-        pdf.cell(w=0, h=6, txt=f"Fecha y Hora de Cierre: {datos_hc.get('fecha_firma', '')}", border=0, ln=1)
+        pdf.cell(w=0, h=6, txt=limpiar_texto_pdf(f"Firmado por: {datos_hc.get('firmado_por', '')}"), border=0, ln=1)
+        pdf.cell(w=0, h=6, txt=limpiar_texto_pdf(f"Fecha y Hora de Cierre: {datos_hc.get('fecha_firma', '')}"), border=0, ln=1)
 
     salida = pdf.output(dest="S")
     if isinstance(salida, str):
@@ -101,6 +292,7 @@ def render(db, paciente, id_pac):
     with c_tit:
         st.markdown("<h3 style='color: #164032; margin-top: 0px;'>🏥 Historia Clínica</h3>", unsafe_allow_html=True)
     with c_pdf:
+        # Generación dinámica del reporte estructurado
         archivo_pdf = generar_documento_pdf(paciente, datos_hc, tipo_plantilla)
         st.download_button(
             label="📥 Exportar a PDF",
@@ -114,7 +306,6 @@ def render(db, paciente, id_pac):
     # VISTA DE LECTURA (EXPEDIENTE SELLADO)
     # ==========================================
     if bloqueado:
-        # Apartado I Colapsable para concordancia visual en modo lectura
         with st.expander("I. Ficha de Identificación y Datos Generales", expanded=False):
             c1, c2, c3 = st.columns(3)
             c1.markdown(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
@@ -142,10 +333,12 @@ def render(db, paciente, id_pac):
         
         with st.container(border=True):
             st.markdown("<h5 style='color: #164032;'>Datos Registrados en el Expediente:</h5>", unsafe_allow_html=True)
-            for key, value in datos_hc.items():
-                if key not in ["bloqueado", "firmado_por", "fecha_firma"]:
-                    nombre_campo = key.replace("_", " ").title()
-                    st.markdown(f"**{nombre_campo}:** {value}")
+            secciones_render = MAPEO_PLANTILLAS.get(tipo_plantilla, [])
+            for titulo_sec, campos in secciones_render:
+                st.markdown(f"**{titulo_sec}**")
+                for key, etiqueta in campos:
+                    val = datos_hc.get(key, "N/A")
+                    st.markdown(f" * **{etiqueta}:** {val}")
 
     # ==========================================
     # MODO EDICIÓN (BORRADOR ACTIVO)
@@ -161,7 +354,7 @@ def render(db, paciente, id_pac):
                 # =========================================================
                 # APARTADO I: FICHA DE IDENTIFICACIÓN (Compacto y Colapsable)
                 # =========================================================
-                with st.expander("I. Ficha de Identificación y Datos Generales", expanded=True):
+                with st.expander("I. Ficha de Identificación y Datos Generales", expanded=False):
                     c1, c2, c3 = st.columns(3)
                     c1.markdown(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
                     c2.markdown(f"**Edad:** {paciente.get('edad', 'N/A')} años")
@@ -397,7 +590,6 @@ def render(db, paciente, id_pac):
                 campos_faltantes = [k.replace("_", " ").title() for k, v in payload.items() if str(v).strip() == ""]
                 
                 if campos_faltantes:
-                    lista_errores = "\n".join([f"- {campo}" for campo in campos_faltantes])
                     st.error(f"🚨 **NO SE PUEDE SELLAR EL EXPEDIENTE.**\n\nFaltan {len(campos_faltantes)} campos por llenar. Si no aplican, escriba 'N/A'.\nRevise todas las secciones desplegables.")
                 else:
                     st.session_state.tmp_hc = payload
