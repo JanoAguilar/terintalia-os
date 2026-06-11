@@ -1,6 +1,64 @@
 import streamlit as st
 from datetime import datetime
+from fpdf import FPDF
 
+# =========================================================
+# FUNCIÓN: FABRICAR EL DOCUMENTO PDF
+# =========================================================
+def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Encabezado
+    pdf.set_font("helvetica", "B", 16)
+    pdf.cell(0, 10, "EXPEDIENTE CLINICO DIGITAL", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(5)
+    
+    # Datos Personales
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(0, 8, "I. Ficha de Identificacion y Datos Generales", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("helvetica", "", 10)
+    pdf.multi_cell(0, 6, f"Paciente: {paciente.get('nombre', 'N/A')}\nEdad: {paciente.get('edad', 'N/A')} | Sexo: {paciente.get('sexo', 'N/A')}\nFolio: {paciente.get('id_p', 'N/A')} | Servicio: {tipo_plantilla}")
+    pdf.ln(5)
+
+    # Registro Clínico (Las notas del psicólogo)
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(0, 8, "II. Registro Clinico de la Sesion", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+    
+    if not datos_hc:
+        pdf.set_font("helvetica", "I", 10)
+        pdf.cell(0, 6, "El expediente clinico aun esta vacio o en blanco.", new_x="LMARGIN", new_y="NEXT")
+    else:
+        # Extraemos e imprimimos todo lo que el especialista escribió
+        llaves_ocultas = ["bloqueado", "firmado_por", "fecha_firma"]
+        for key, value in datos_hc.items():
+            if key not in llaves_ocultas and str(value).strip() != "":
+                # Limpiamos el nombre (ej. ad_motivo_principal -> Ad Motivo Principal)
+                nombre_campo = str(key).replace("_", " ").title()
+                
+                pdf.set_font("helvetica", "B", 10)
+                pdf.multi_cell(0, 6, txt=f"{nombre_campo}:")
+                pdf.set_font("helvetica", "", 10)
+                # Convertimos a string para evitar errores con caracteres especiales
+                pdf.multi_cell(0, 6, txt=str(value))
+                pdf.ln(2)
+                
+    # Firmas Legales (Solo si ya se selló)
+    if datos_hc.get("bloqueado"):
+        pdf.ln(10)
+        pdf.set_font("helvetica", "B", 10)
+        pdf.cell(0, 6, f"--- DOCUMENTO FIRMADO Y SELLADO ---", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("helvetica", "", 10)
+        pdf.cell(0, 6, f"Por: {datos_hc.get('firmado_por', '')}", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, f"Fecha: {datos_hc.get('fecha_firma', '')}", new_x="LMARGIN", new_y="NEXT")
+
+    # Regresa el archivo en formato de bytes listo para descargar
+    return bytes(pdf.output())
+
+# =========================================================
+# RENDERIZADO PRINCIPAL DE LA PESTAÑA
+# =========================================================
 def render(db, paciente, id_pac):
     if 'conf_borrador' not in st.session_state: st.session_state.conf_borrador = False
     if 'conf_sello' not in st.session_state: st.session_state.conf_sello = False
@@ -12,15 +70,40 @@ def render(db, paciente, id_pac):
     datos_hc = doc_hc.to_dict() if doc_hc.exists else {}
     bloqueado = datos_hc.get("bloqueado", False)
 
+    # Rutamos la plantilla ANTES para poder mandarla al PDF
+    esp_upper = paciente.get("esp", "").upper()
+    terapia = paciente.get("tipo_terapia", "")
+    edad = int(paciente.get("edad", 0))
+
+    if "FISIO" in esp_upper:
+        tipo_plantilla = "FISIOTERAPIA"
+    elif "NUTRI" in esp_upper:
+        tipo_plantilla = "NUTRICIÓN"
+    elif terapia == "De Pareja":
+        tipo_plantilla = "TERAPIA DE PAREJA"
+    elif edad < 18:
+        tipo_plantilla = "PSICOLOGÍA INFANTOJUVENIL"
+    else:
+        tipo_plantilla = "PSICOLOGÍA ADULTOS"
+
     # =========================================================
-    # APARTADO I: FICHA DE IDENTIFICACIÓN (Solo Lectura)
+    # APARTADO I: FICHA DE IDENTIFICACIÓN Y BOTÓN PDF
     # =========================================================
     c_tit, c_pdf = st.columns([3, 1])
     with c_tit:
         st.markdown("<h4 style='color: #164032; margin-top: 0px;'>📋 I. Ficha de Identificación y Datos Generales</h4>", unsafe_allow_html=True)
     with c_pdf:
-        # Botón estructural para la exportación de la Historia Clínica a PDF
-        st.button("📥 Exportar a PDF", key="btn_pdf_hc", use_container_width=True)
+        # Generamos el archivo PDF en la memoria
+        archivo_pdf = generar_documento_pdf(paciente, datos_hc, tipo_plantilla)
+        
+        # Botón Real de Descarga
+        st.download_button(
+            label="📥 Exportar a PDF",
+            data=archivo_pdf,
+            file_name=f"Expediente_{paciente.get('nombre', 'Paciente')}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
 
     with st.container(border=True):
         # 👤 Datos Personales
@@ -42,36 +125,20 @@ def render(db, paciente, id_pac):
         c6.write(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
         c7.write(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
         c8.write(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
-        st.write(f"**Domicilio Completo:** {paciente.get('domicilio', 'N/A')}")
+        # LLAVE CORREGIDA: "direccion" en lugar de "domicilio"
+        st.write(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}") 
         
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
         
         # 🚨 Emergencia
         st.markdown("<p style='color: #D35400; font-weight: bold; margin-bottom: 5px;'>🚨 Emergencia</p>", unsafe_allow_html=True)
         c9, c10, c11 = st.columns(3)
-        c9.write(f"**Llamar a:** {paciente.get('contacto_emergencia', 'N/A')}")
-        c10.write(f"**Parentesco:** {paciente.get('parentesco_emergencia', 'N/A')}")
-        c11.write(f"**Tel. Emergencia:** {paciente.get('tel_emergencia', 'N/A')}")
+        # LLAVES CORREGIDAS PARA EMERGENCIA
+        c9.write(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
+        c10.write(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
+        c11.write(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
         
     st.write("")
-
-    # ==========================================
-    # RUTEO INTELIGENTE DE PLANTILLAS
-    # ==========================================
-    esp_upper = paciente.get("esp", "").upper()
-    terapia = paciente.get("tipo_terapia", "")
-    edad = int(paciente.get("edad", 0))
-
-    if "FISIO" in esp_upper:
-        tipo_plantilla = "FISIOTERAPIA"
-    elif "NUTRI" in esp_upper:
-        tipo_plantilla = "NUTRICIÓN"
-    elif terapia == "De Pareja":
-        tipo_plantilla = "TERAPIA DE PAREJA"
-    elif edad < 18:
-        tipo_plantilla = "PSICOLOGÍA INFANTOJUVENIL"
-    else:
-        tipo_plantilla = "PSICOLOGÍA ADULTOS"
 
     # ==========================================
     # VISTA DE LECTURA (CUANDO YA ESTÁ SELLADO)
