@@ -53,9 +53,16 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
         pdf.cell(w=0, h=6, txt=f"Por: {datos_hc.get('firmado_por', '')}", border=0, ln=1)
         pdf.cell(w=0, h=6, txt=f"Fecha: {datos_hc.get('fecha_firma', '')}", border=0, ln=1)
 
-    # Regresa el archivo en formato de bytes listo para descargar
-    return bytes(pdf.output())
-
+    # --- BLINDAJE DE EXPORTACIÓN ---
+    # Extraemos el archivo y evaluamos qué formato nos entregó la nube
+    salida = pdf.output(dest="S")
+    
+    if isinstance(salida, str):
+        # Si la nube lo entregó como texto, le forzamos la codificación correcta
+        return salida.encode("latin-1")
+    
+    # Si la nube ya lo entregó como bytes (fpdf2 puro), lo pasamos directo
+    return bytes(salida)
 # =========================================================
 # RENDERIZADO PRINCIPAL DE LA PESTAÑA
 # =========================================================
