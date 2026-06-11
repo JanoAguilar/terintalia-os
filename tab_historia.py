@@ -165,7 +165,6 @@ MAPEO_PLANTILLAS = {
 }
 
 def limpiar_texto_pdf(texto):
-    """Sanitiza strings de entrada para evitar fallas de codificación en FPDF"""
     reemplazos = {
         'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
         'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
@@ -193,7 +192,6 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
     pdf.set_font("helvetica", "B", 12)
     pdf.cell(w=0, h=8, txt=limpiar_texto_pdf("I. Ficha de Identificación y Datos Generales"), border=0, ln=1)
     
-    # Sangría de bloque de datos generales (Margen izquierdo a 25)
     pdf.set_left_margin(25)
     pdf.set_font("helvetica", "", 10)
     
@@ -211,16 +209,14 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
     pdf.set_left_margin(20)
     pdf.ln(6)
 
-    # 3. Apartados II en Adelante (Estructuración Dinámica por Plantilla)
+    # 3. Apartados II en Adelante
     secciones = MAPEO_PLANTILLAS.get(tipo_plantilla, [])
-    
     for titulo_seccion, campos in secciones:
         pdf.set_font("helvetica", "B", 12)
         pdf.cell(w=0, h=8, txt=limpiar_texto_pdf(titulo_seccion), border=0, ln=1)
         pdf.ln(1)
         
         for key, etiqueta_campo in campos:
-            # RASTREADOR: Busca en base de datos o en la sesión en vivo actual
             valor_campo = datos_hc.get(key, "")
             if not str(valor_campo).strip() and "tmp_hc" in st.session_state:
                 valor_campo = st.session_state.tmp_hc.get(key, "")
@@ -228,22 +224,18 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
             if not str(valor_campo).strip():
                 valor_campo = "N/A"
                 
-            # Sangría Nivel 1: Pregunta / Campo (Margen 25)
             pdf.set_left_margin(25)
             pdf.set_font("helvetica", "B", 10)
             pdf.cell(w=0, h=6, txt=limpiar_texto_pdf(f"{etiqueta_campo}:"), border=0, ln=1)
             
-            # Sangría Nivel 2: Respuesta / Contenido (Margen 30 para el bloque de texto)
             pdf.set_left_margin(30)
             pdf.set_font("helvetica", "", 10)
             pdf.multi_cell(w=155, h=5, txt=limpiar_texto_pdf(valor_campo))
             pdf.ln(2)
             
-        # Restablece margen base al terminar la sección
         pdf.set_left_margin(20)
         pdf.ln(3)
                 
-    # 4. Bloque de Validación Legal de Firmas
     if datos_hc.get("bloqueado"):
         pdf.ln(10)
         pdf.set_font("helvetica", "B", 10)
@@ -263,6 +255,7 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
 def render(db, paciente, id_pac):
     if 'conf_borrador' not in st.session_state: st.session_state.conf_borrador = False
     if 'conf_sello' not in st.session_state: st.session_state.conf_sello = False
+    if 'conf_pdf' not in st.session_state: st.session_state.conf_pdf = False
     if 'tmp_hc' not in st.session_state: st.session_state.tmp_hc = {}
 
     ref_hc = db.collection("pacientes").document(id_pac).collection("historia_clinica").document("unica")
@@ -292,15 +285,36 @@ def render(db, paciente, id_pac):
     with c_tit:
         st.markdown("<h3 style='color: #164032; margin-top: 0px;'>🏥 Historia Clínica</h3>", unsafe_allow_html=True)
     with c_pdf:
-        # Generación dinámica del reporte estructurado
-        archivo_pdf = generar_documento_pdf(paciente, datos_hc, tipo_plantilla)
-        st.download_button(
-            label="📥 Exportar a PDF",
-            data=archivo_pdf,
-            file_name=f"Expediente_{paciente.get('nombre', 'Paciente')}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+        # Pre-botón que activa la compuerta de confirmación
+        if not st.session_state.conf_pdf:
+            if st.button("📥 Exportar a PDF", key="btn_pre_pdf", use_container_width=True):
+                st.session_state.conf_pdf = True
+                st.rerun()
+
+    # ==========================================
+    # PANTALLA DE VALIDACIÓN / CONFIRMACIÓN PDF
+    # ==========================================
+    if st.session_state.conf_pdf:
+        with st.container(border=True):
+            st.warning("❓ **¿Realmente deseas exportar esta Historia Clínica completa a formato PDF?**")
+            c_conf1, c_conf2 = st.columns(2)
+            with c_conf1:
+                archivo_pdf = generar_documento_pdf(paciente, datos_hc, tipo_plantilla)
+                # El botón real de descarga nativa de Streamlit
+                if st.download_button(
+                    label="✅ SÍ, GENERAR REPORTE",
+                    data=archivo_pdf,
+                    file_name=f"Expediente_{paciente.get('nombre', 'Paciente')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    type="primary"
+                ):
+                    st.session_state.conf_pdf = False
+            with c_conf2:
+                if st.button("❌ CANCELAR", use_container_width=True):
+                    st.session_state.conf_pdf = False
+                    st.rerun()
+        st.markdown("---")
 
     # ==========================================
     # VISTA DE LECTURA (EXPEDIENTE SELLADO)
@@ -308,24 +322,24 @@ def render(db, paciente, id_pac):
     if bloqueado:
         with st.expander("I. Ficha de Identificación y Datos Generales", expanded=False):
             c1, c2, c3 = st.columns(3)
-            c1.markdown(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
-            c2.markdown(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-            c3.markdown(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
+            c1.markdown(f"<span style='font-size:14px;'><b>Nombre Completo:</b> {paciente.get('nombre', 'N/A')}</span>", unsafe_allow_html=True)
+            c2.markdown(f"<span style='font-size:14px;'><b>Edad:</b> {paciente.get('edad', 'N/A')} años</span>", unsafe_allow_html=True)
+            c3.markdown(f"<span style='font-size:14px;'><b>Sexo:</b> {paciente.get('sexo', 'N/A')}</span>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
-            c1.markdown(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
-            c2.markdown(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
-            c3.markdown(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
+            c1.markdown(f"<span style='font-size:14px;'><b>Estado Civil:</b> {paciente.get('estado_civil', 'N/A')}</span>", unsafe_allow_html=True)
+            c2.markdown(f"<span style='font-size:14px;'><b>Escolaridad:</b> {paciente.get('escolaridad', 'N/A')}</span>", unsafe_allow_html=True)
+            c3.markdown(f"<span style='font-size:14px;'><b>Teléfono Celular:</b> {paciente.get('telefono', 'N/A')}</span>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
-            c1.markdown(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
-            c2.markdown(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
-            c3.markdown(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
+            c1.markdown(f"<span style='font-size:14px;'><b>Teléfono Casa:</b> {paciente.get('tel_casa', 'N/A')}</span>", unsafe_allow_html=True)
+            c2.markdown(f"<span style='font-size:14px;'><b>Correo Electrónico:</b> {paciente.get('correo', 'N/A')}</span>", unsafe_allow_html=True)
+            c3.markdown(f"<span style='font-size:14px;'><b>Domicilio Completo:</b> {paciente.get('direccion', 'N/A')}</span>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
-            c1.markdown(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
-            c2.markdown(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
-            c3.markdown(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
+            c1.markdown(f"<span style='font-size:14px;'><b>Llamar a:</b> {paciente.get('contacto_emergencia_nom', 'N/A')}</span>", unsafe_allow_html=True)
+            c2.markdown(f"<span style='font-size:14px;'><b>Parentesco:</b> {paciente.get('contacto_emergencia_par', 'N/A')}</span>", unsafe_allow_html=True)
+            c3.markdown(f"<span style='font-size:14px;'><b>Tel. Emergencia:</b> {paciente.get('contacto_emergencia_tel', 'N/A')}</span>", unsafe_allow_html=True)
 
         st.write("")
         st.success("🔒 **HISTORIA CLÍNICA CERRADA Y FIRMADA LEGALMENTE**")
@@ -352,28 +366,28 @@ def render(db, paciente, id_pac):
                 payload = {}
                 
                 # =========================================================
-                # APARTADO I: FICHA DE IDENTIFICACIÓN (Compacto y Colapsable)
+                # APARTADO I: FICHA DE IDENTIFICACIÓN (Escala Normalizada 14px)
                 # =========================================================
                 with st.expander("I. Ficha de Identificación y Datos Generales", expanded=False):
                     c1, c2, c3 = st.columns(3)
-                    c1.markdown(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
-                    c2.markdown(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-                    c3.markdown(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
+                    c1.markdown(f"<span style='font-size:14px;'><b>Nombre Completo:</b> {paciente.get('nombre', 'N/A')}</span>", unsafe_allow_html=True)
+                    c2.markdown(f"<span style='font-size:14px;'><b>Edad:</b> {paciente.get('edad', 'N/A')} años</span>", unsafe_allow_html=True)
+                    c3.markdown(f"<span style='font-size:14px;'><b>Sexo:</b> {paciente.get('sexo', 'N/A')}</span>", unsafe_allow_html=True)
                     
                     c1, c2, c3 = st.columns(3)
-                    c1.markdown(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
-                    c2.markdown(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
-                    c3.markdown(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
+                    c1.markdown(f"<span style='font-size:14px;'><b>Estado Civil:</b> {paciente.get('estado_civil', 'N/A')}</span>", unsafe_allow_html=True)
+                    c2.markdown(f"<span style='font-size:14px;'><b>Escolaridad:</b> {paciente.get('escolaridad', 'N/A')}</span>", unsafe_allow_html=True)
+                    c3.markdown(f"<span style='font-size:14px;'><b>Teléfono Celular:</b> {paciente.get('telefono', 'N/A')}</span>", unsafe_allow_html=True)
                     
                     c1, c2, c3 = st.columns(3)
-                    c1.markdown(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
-                    c2.markdown(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
-                    c3.markdown(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
+                    c1.markdown(f"<span style='font-size:14px;'><b>Teléfono Casa:</b> {paciente.get('tel_casa', 'N/A')}</span>", unsafe_allow_html=True)
+                    c2.markdown(f"<span style='font-size:14px;'><b>Correo Electrónico:</b> {paciente.get('correo', 'N/A')}</span>", unsafe_allow_html=True)
+                    c3.markdown(f"<span style='font-size:14px;'><b>Domicilio Completo:</b> {paciente.get('direccion', 'N/A')}</span>", unsafe_allow_html=True)
                     
                     c1, c2, c3 = st.columns(3)
-                    c1.markdown(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
-                    c2.markdown(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
-                    c3.markdown(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
+                    c1.markdown(f"<span style='font-size:14px;'><b>Llamar a:</b> {paciente.get('contacto_emergencia_nom', 'N/A')}</span>", unsafe_allow_html=True)
+                    c2.markdown(f"<span style='font-size:14px;'><b>Parentesco:</b> {paciente.get('contacto_emergencia_par', 'N/A')}</span>", unsafe_allow_html=True)
+                    c3.markdown(f"<span style='font-size:14px;'><b>Tel. Emergencia:</b> {paciente.get('contacto_emergencia_tel', 'N/A')}</span>", unsafe_allow_html=True)
                 
                 st.markdown("---")
                 
@@ -401,7 +415,7 @@ def render(db, paciente, id_pac):
                         payload["ad_meds"] = c4.text_area("Medicaciones actuales:", value=datos_hc.get("ad_meds", ""))
                         payload["ad_riesgo_suicida"] = st.text_area("Intentos suicidas, autolesiones o ideación actual:", value=datos_hc.get("ad_riesgo_suicida", ""))
                         payload["ad_sustancias"] = st.text_area("Consumo de alcohol u otras sustancias:", value=datos_hc.get("ad_sustancias", ""))
-                        payload["ad_trauma"] = st.text_area("Eventos traumáticos (abuso, negligencia, violencia):", value=datos_hc.get("ad_trauma", ""))
+                        payload["ad_trauma"] = st.text_area("Eventos traumáticos (abuso, negligencia, violence):", value=datos_hc.get("ad_trauma", ""))
                         st.markdown("---")
                         payload["ad_fam_comp"] = st.text_area("Composición familiar actual:", value=datos_hc.get("ad_fam_comp", ""))
                         payload["ad_fam_relacion"] = st.text_area("Relación con figuras parentales:", value=datos_hc.get("ad_fam_relacion", ""))
@@ -443,8 +457,8 @@ def render(db, paciente, id_pac):
                 elif tipo_plantilla == "PSICOLOGÍA INFANTOJUVENIL":
                     with st.expander("II. Datos de Padres/Tutores e III. Motivo", expanded=True):
                         c1, c2 = st.columns(2)
-                        payload["ij_padre"] = c1.text_area("Datos del Padre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_padre", ""))
-                        payload["ij_madre"] = c2.text_area("Datos de la Madre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_madre", ""))
+                        payload["ij_padre"] = st.text_area("Datos del Padre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_padre", ""))
+                        payload["ij_madre"] = st.text_area("Datos de la Madre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_madre", ""))
                         payload["ij_acompanante"] = st.text_area("Persona que acompaña al menor:", value=datos_hc.get("ij_acompanante", ""))
                         st.markdown("---")
                         payload["ij_motivo_padres"] = st.text_area("Motivo referido por padres/cuidadores:", value=datos_hc.get("ij_motivo_padres", ""))
@@ -588,7 +602,6 @@ def render(db, paciente, id_pac):
             
             if btn_firmar:
                 campos_faltantes = [k.replace("_", " ").title() for k, v in payload.items() if str(v).strip() == ""]
-                
                 if campos_faltantes:
                     st.error(f"🚨 **NO SE PUEDE SELLAR EL EXPEDIENTE.**\n\nFaltan {len(campos_faltantes)} campos por llenar. Si no aplican, escriba 'N/A'.\nRevise todas las secciones desplegables.")
                 else:
@@ -597,7 +610,7 @@ def render(db, paciente, id_pac):
                     st.rerun()
 
         # ==========================================
-        # PANTALLAS DE CONFIRMACIÓN
+        # PANTALLAS DE CONFIRMACIÓN DE SISTEMA
         # ==========================================
         elif st.session_state.conf_borrador:
             st.warning("⚠️ **ATENCIÓN:** Estás a punto de guardar los avances como **Borrador**. La Historia Clínica aún no tendrá validez legal completa. ¿Deseas continuar?")
