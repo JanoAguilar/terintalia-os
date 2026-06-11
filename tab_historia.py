@@ -2,9 +2,6 @@ import streamlit as st
 from datetime import datetime
 
 def render(db, paciente, id_pac):
-    # --- LETRERO DE PRUEBA (Para confirmar que la nube se actualizó) ---
-    st.error("🚀 VERSIÓN NUEVA ACTIVADA - APARTADO I")
-
     if 'conf_borrador' not in st.session_state: st.session_state.conf_borrador = False
     if 'conf_sello' not in st.session_state: st.session_state.conf_sello = False
     if 'tmp_hc' not in st.session_state: st.session_state.tmp_hc = {}
@@ -14,24 +11,6 @@ def render(db, paciente, id_pac):
     
     datos_hc = doc_hc.to_dict() if doc_hc.exists else {}
     bloqueado = datos_hc.get("bloqueado", False)
-
-    # =========================================================
-    # APARTADO I: FICHA DE IDENTIFICACIÓN (Solo Lectura)
-    # =========================================================
-    st.markdown("<h5 style='color: #1E3A8A;'>I. Ficha de Identificación y Datos Generales</h5>", unsafe_allow_html=True)
-    with st.container(border=True):
-        c_id1, c_id2, c_id3 = st.columns(3)
-        c_id1.write(f"**Nombre:** {paciente.get('nombre', 'N/A')}")
-        c_id2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-        c_id3.write(f"**Sexo/Género:** {paciente.get('sexo', 'N/A')}")
-        
-        c_id4, c_id5, c_id6 = st.columns(3)
-        c_id4.write(f"**Teléfono:** {paciente.get('telefono', 'N/A')}")
-        c_id5.write(f"**Correo:** {paciente.get('correo', 'N/A')}")
-        c_id6.write(f"**Ocupación:** {paciente.get('ocupacion', 'N/A')}")
-        
-        st.write(f"**Domicilio:** {paciente.get('domicilio', 'N/A')}")
-    st.write("")
 
     # ==========================================
     # RUTEO INTELIGENTE DE PLANTILLAS
@@ -75,6 +54,24 @@ def render(db, paciente, id_pac):
             
             with st.form("form_hc"):
                 payload = {}
+                
+                # =========================================================
+                # APARTADO I: FICHA DE IDENTIFICACIÓN (Universal)
+                # =========================================================
+                with st.expander("I. Ficha de Identificación y Datos Generales", expanded=True):
+                    c_id1, c_id2, c_id3 = st.columns(3)
+                    payload["id_nombre"] = c_id1.text_input("Nombre completo:", value=datos_hc.get("id_nombre", paciente.get("nombre", "")))
+                    payload["id_edad"] = c_id2.text_input("Edad:", value=datos_hc.get("id_edad", str(paciente.get("edad", ""))))
+                    payload["id_sexo"] = c_id3.text_input("Sexo / Género:", value=datos_hc.get("id_sexo", paciente.get("sexo", "")))
+                    
+                    c_id4, c_id5, c_id6 = st.columns(3)
+                    payload["id_telefono"] = c_id4.text_input("Teléfono de contacto:", value=datos_hc.get("id_telefono", paciente.get("telefono", "")))
+                    payload["id_correo"] = c_id5.text_input("Correo electrónico:", value=datos_hc.get("id_correo", paciente.get("correo", "")))
+                    payload["id_ocupacion"] = c_id6.text_input("Ocupación / Grado escolar:", value=datos_hc.get("id_ocupacion", paciente.get("ocupacion", "")))
+                    
+                    c_id7, c_id8 = st.columns([2, 1])
+                    payload["id_domicilio"] = c_id7.text_input("Domicilio completo:", value=datos_hc.get("id_domicilio", paciente.get("domicilio", "")))
+                    payload["id_emergencia"] = c_id8.text_input("Contacto de emergencia (Nombre y Tel):", value=datos_hc.get("id_emergencia", ""))
                 
                 # ---------------------------------------------------------
                 # 1. PLANTILLA: PSICOLOGÍA ADULTOS
