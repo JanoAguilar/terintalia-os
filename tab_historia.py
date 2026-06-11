@@ -12,6 +12,49 @@ def render(db, paciente, id_pac):
     datos_hc = doc_hc.to_dict() if doc_hc.exists else {}
     bloqueado = datos_hc.get("bloqueado", False)
 
+    # =========================================================
+    # APARTADO I: FICHA DE IDENTIFICACIÓN (Solo Lectura)
+    # =========================================================
+    c_tit, c_pdf = st.columns([3, 1])
+    with c_tit:
+        st.markdown("<h4 style='color: #164032; margin-top: 0px;'>📋 I. Ficha de Identificación y Datos Generales</h4>", unsafe_allow_html=True)
+    with c_pdf:
+        # Botón estructural para la exportación de la Historia Clínica a PDF
+        st.button("📥 Exportar a PDF", key="btn_pdf_hc", use_container_width=True)
+
+    with st.container(border=True):
+        # 👤 Datos Personales
+        st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>👤 Datos Personales</p>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        c1.write(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
+        c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
+        c3.write(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
+        
+        c4, c5 = st.columns(2)
+        c4.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
+        c5.write(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
+        
+        st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+        
+        # 📞 Contacto y Dirección
+        st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>📞 Contacto y Dirección</p>", unsafe_allow_html=True)
+        c6, c7, c8 = st.columns(3)
+        c6.write(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
+        c7.write(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
+        c8.write(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
+        st.write(f"**Domicilio Completo:** {paciente.get('domicilio', 'N/A')}")
+        
+        st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+        
+        # 🚨 Emergencia
+        st.markdown("<p style='color: #D35400; font-weight: bold; margin-bottom: 5px;'>🚨 Emergencia</p>", unsafe_allow_html=True)
+        c9, c10, c11 = st.columns(3)
+        c9.write(f"**Llamar a:** {paciente.get('contacto_emergencia', 'N/A')}")
+        c10.write(f"**Parentesco:** {paciente.get('parentesco_emergencia', 'N/A')}")
+        c11.write(f"**Tel. Emergencia:** {paciente.get('tel_emergencia', 'N/A')}")
+        
+    st.write("")
+
     # ==========================================
     # RUTEO INTELIGENTE DE PLANTILLAS
     # ==========================================
@@ -54,24 +97,6 @@ def render(db, paciente, id_pac):
             
             with st.form("form_hc"):
                 payload = {}
-                
-                # =========================================================
-                # APARTADO I: FICHA DE IDENTIFICACIÓN (Universal)
-                # =========================================================
-                with st.expander("I. Ficha de Identificación y Datos Generales", expanded=True):
-                    c_id1, c_id2, c_id3 = st.columns(3)
-                    payload["id_nombre"] = c_id1.text_input("Nombre completo:", value=datos_hc.get("id_nombre", paciente.get("nombre", "")))
-                    payload["id_edad"] = c_id2.text_input("Edad:", value=datos_hc.get("id_edad", str(paciente.get("edad", ""))))
-                    payload["id_sexo"] = c_id3.text_input("Sexo / Género:", value=datos_hc.get("id_sexo", paciente.get("sexo", "")))
-                    
-                    c_id4, c_id5, c_id6 = st.columns(3)
-                    payload["id_telefono"] = c_id4.text_input("Teléfono de contacto:", value=datos_hc.get("id_telefono", paciente.get("telefono", "")))
-                    payload["id_correo"] = c_id5.text_input("Correo electrónico:", value=datos_hc.get("id_correo", paciente.get("correo", "")))
-                    payload["id_ocupacion"] = c_id6.text_input("Ocupación / Grado escolar:", value=datos_hc.get("id_ocupacion", paciente.get("ocupacion", "")))
-                    
-                    c_id7, c_id8 = st.columns([2, 1])
-                    payload["id_domicilio"] = c_id7.text_input("Domicilio completo:", value=datos_hc.get("id_domicilio", paciente.get("domicilio", "")))
-                    payload["id_emergencia"] = c_id8.text_input("Contacto de emergencia (Nombre y Tel):", value=datos_hc.get("id_emergencia", ""))
                 
                 # ---------------------------------------------------------
                 # 1. PLANTILLA: PSICOLOGÍA ADULTOS
@@ -189,15 +214,9 @@ def render(db, paciente, id_pac):
                 # 3. PLANTILLA: TERAPIA DE PAREJA
                 # ---------------------------------------------------------
                 elif tipo_plantilla == "TERAPIA DE PAREJA":
-                    with st.expander("I. Datos de Identificación y II. Motivo", expanded=True):
-                        c1, c2 = st.columns(2)
-                        payload["p_int1"] = c1.text_area("Datos Integrante 1 (Nombre, edad, ocupación, esc):", value=datos_hc.get("p_int1", ""))
-                        payload["p_int2"] = c2.text_area("Datos Integrante 2 (Nombre, edad, ocupación, esc):", value=datos_hc.get("p_int2", ""))
+                    with st.expander("II. Datos de Identificación de la Relación y Motivo", expanded=True):
                         payload["p_tiempos"] = st.text_area("Tiempo de relación / Convivencia / Hijos:", value=datos_hc.get("p_tiempos", ""))
-                        st.markdown("---")
                         payload["p_motivo_pareja"] = st.text_area("Motivo principal referido por la pareja:", value=datos_hc.get("p_motivo_pareja", ""))
-                        payload["p_motivo_int1"] = st.text_area("Motivo referido por Integrante 1:", value=datos_hc.get("p_motivo_int1", ""))
-                        payload["p_motivo_int2"] = st.text_area("Motivo referido por Integrante 2:", value=datos_hc.get("p_motivo_int2", ""))
                         payload["p_expectativas"] = st.text_area("Expectativas del proceso terapéutico:", value=datos_hc.get("p_expectativas", ""))
 
                     with st.expander("III. Historia y IV. Dinámica Actual"):
@@ -218,26 +237,26 @@ def render(db, paciente, id_pac):
                 # 4. PLANTILLA: NUTRICIÓN
                 # ---------------------------------------------------------
                 elif tipo_plantilla == "NUTRICIÓN":
-                    with st.expander("2. Motivo y 3. Antecedentes Personales", expanded=True):
+                    with st.expander("II. Motivo y III. Antecedentes Personales", expanded=True):
                         payload["nut_motivo"] = st.text_area("Motivo de consulta:", value=datos_hc.get("nut_motivo", ""))
                         c1, c2 = st.columns(2)
                         payload["nut_medicos"] = c1.text_area("Médicos, Quirúrgicos y Familiares:", value=datos_hc.get("nut_medicos", ""))
                         payload["nut_alergias"] = c2.text_area("Alergias, Intolerancias y Signos físicos:", value=datos_hc.get("nut_alergias", ""))
                         payload["nut_meds"] = st.text_area("Medicamentos, Suplementos, Tabaco/Drogas:", value=datos_hc.get("nut_meds", ""))
 
-                    with st.expander("4. Hábitos Alimenticios y 7. Recordatorio 24h"):
+                    with st.expander("IV. Hábitos Alimenticios y Recordatorio 24h"):
                         c1, c2 = st.columns(2)
-                        payload["nut_horarios"] = c1.text_area("Comidas al día, Horarios y Lugares:", value=datos_hc.get("nut_horarios", ""))
+                        payload["nut_horarios"] = c1.text_area("Comidas al día, Horarios y Lugares:", value=nut_horarios, "")
                         payload["nut_pref"] = c2.text_area("Preferencias y aversiones:", value=datos_hc.get("nut_pref", ""))
                         payload["nut_frecuencia"] = st.text_area("Frecuencia (Frutas, verduras, cereales, lácteos, grasas, postres):", value=datos_hc.get("nut_frecuencia", ""))
                         payload["nut_rec24"] = st.text_area("Recordatorio de 24 horas:", value=datos_hc.get("nut_rec24", ""))
 
-                    with st.expander("5. Actividad, 6. Emocional y 8. Sueño"):
+                    with st.expander("V. Actividad, VI. Emocional y VII. Sueño"):
                         payload["nut_actividad"] = st.text_area("Actividad física (Tipo, frecuencia, intensidad):", value=datos_hc.get("nut_actividad", ""))
                         payload["nut_emocional"] = st.text_area("Estado emocional (Comer por estrés, atracones, culpa):", value=datos_hc.get("nut_emocional", ""))
                         payload["nut_sueno"] = st.text_area("Calidad del sueño y horas:", value=datos_hc.get("nut_sueno", ""))
 
-                    with st.expander("9. Antropometría, 10. Objetivos y 11. Plan"):
+                    with st.expander("VIII. Antropometría, IX. Objetivos y X. Plan"):
                         c1, c2, c3, c4 = st.columns(4)
                         payload["nut_peso"] = c1.text_area("Peso (kg)", value=datos_hc.get("nut_peso", ""))
                         payload["nut_talla"] = c2.text_area("Estatura (cm)", value=datos_hc.get("nut_talla", ""))
@@ -252,7 +271,7 @@ def render(db, paciente, id_pac):
                 # 5. PLANTILLA: FISIOTERAPIA
                 # ---------------------------------------------------------
                 elif tipo_plantilla == "FISIOTERAPIA":
-                    with st.expander("II. Motivo y III. Historia del Problema", expanded=True):
+                    with st.expander("II. Motivo e III. Historia del Problema", expanded=True):
                         payload["f_motivo"] = st.text_area("Problema principal y Zona afectada:", value=datos_hc.get("f_motivo", ""))
                         payload["f_evolucion"] = st.selectbox("Tiempo de evolución:", ["", "Agudo", "Subagudo", "Crónico"], index=["", "Agudo", "Subagudo", "Crónico"].index(datos_hc.get("f_evolucion", "")))
                         payload["f_mecanismo"] = st.text_area("Inicio y Mecanismo de lesión (accidente, sobrecarga, etc.):", value=datos_hc.get("f_mecanismo", ""))
@@ -266,7 +285,7 @@ def render(db, paciente, id_pac):
                         payload["f_dolor_tipo"] = c2.text_area("Tipo de dolor (punzante, opresivo, quemante):", value=datos_hc.get("f_dolor_tipo", ""))
                         payload["f_factores"] = st.text_area("Factores que aumentan o alivian el dolor:", value=datos_hc.get("f_factores", ""))
 
-                    with st.expander("VI. Exploración, VII. Diagnóstico y VIII. Plan"):
+                    with st.expander("VI. Exploración, VII. Diagnóstico e VIII. Plan"):
                         payload["f_exploracion"] = st.text_area("Inspección, Palpación, Rango de movimiento y Fuerza:", value=datos_hc.get("f_exploracion", ""))
                         payload["f_pruebas"] = st.text_area("Pruebas especiales y Limitaciones funcionales:", value=datos_hc.get("f_pruebas", ""))
                         st.markdown("---")
