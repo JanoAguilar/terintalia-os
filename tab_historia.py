@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime
 
 def render(db, paciente, id_pac):
-    # --- LETRERO DE PRUEBA (Para saber si la nube ya se actualizó) ---
+    # --- LETRERO DE PRUEBA (Para confirmar que la nube se actualizó) ---
     st.error("🚀 VERSIÓN NUEVA ACTIVADA - APARTADO I")
 
     if 'conf_borrador' not in st.session_state: st.session_state.conf_borrador = False
