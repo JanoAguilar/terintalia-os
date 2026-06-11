@@ -3,7 +3,7 @@ from datetime import datetime
 from fpdf import FPDF
 
 # =========================================================
-# FUNCIÓN: FABRICAR EL DOCUMENTO PDF
+# FUNCIÓN: FABRICAR EL DOCUMENTO PDF (Versión Universal)
 # =========================================================
 def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
     pdf = FPDF()
@@ -11,24 +11,24 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
     
     # Encabezado
     pdf.set_font("helvetica", "B", 16)
-    pdf.cell(0, 10, "EXPEDIENTE CLINICO DIGITAL", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(w=0, h=10, txt="EXPEDIENTE CLINICO DIGITAL", border=0, ln=1, align="C")
     pdf.ln(5)
     
     # Datos Personales
     pdf.set_font("helvetica", "B", 12)
-    pdf.cell(0, 8, "I. Ficha de Identificacion y Datos Generales", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(w=0, h=8, txt="I. Ficha de Identificacion y Datos Generales", border=0, ln=1)
     pdf.set_font("helvetica", "", 10)
-    pdf.multi_cell(0, 6, f"Paciente: {paciente.get('nombre', 'N/A')}\nEdad: {paciente.get('edad', 'N/A')} | Sexo: {paciente.get('sexo', 'N/A')}\nFolio: {paciente.get('id_p', 'N/A')} | Servicio: {tipo_plantilla}")
+    pdf.multi_cell(w=0, h=6, txt=f"Paciente: {paciente.get('nombre', 'N/A')}\nEdad: {paciente.get('edad', 'N/A')} | Sexo: {paciente.get('sexo', 'N/A')}\nFolio: {paciente.get('id_p', 'N/A')} | Servicio: {tipo_plantilla}")
     pdf.ln(5)
 
     # Registro Clínico (Las notas del psicólogo)
     pdf.set_font("helvetica", "B", 12)
-    pdf.cell(0, 8, "II. Registro Clinico de la Sesion", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(w=0, h=8, txt="II. Registro Clinico de la Sesion", border=0, ln=1)
     pdf.ln(2)
     
     if not datos_hc:
         pdf.set_font("helvetica", "I", 10)
-        pdf.cell(0, 6, "El expediente clinico aun esta vacio o en blanco.", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(w=0, h=6, txt="El expediente clinico aun esta vacio o en blanco.", border=0, ln=1)
     else:
         # Extraemos e imprimimos todo lo que el especialista escribió
         llaves_ocultas = ["bloqueado", "firmado_por", "fecha_firma"]
@@ -38,20 +38,20 @@ def generar_documento_pdf(paciente, datos_hc, tipo_plantilla):
                 nombre_campo = str(key).replace("_", " ").title()
                 
                 pdf.set_font("helvetica", "B", 10)
-                pdf.multi_cell(0, 6, txt=f"{nombre_campo}:")
+                pdf.multi_cell(w=0, h=6, txt=f"{nombre_campo}:")
                 pdf.set_font("helvetica", "", 10)
                 # Convertimos a string para evitar errores con caracteres especiales
-                pdf.multi_cell(0, 6, txt=str(value))
+                pdf.multi_cell(w=0, h=6, txt=str(value))
                 pdf.ln(2)
                 
     # Firmas Legales (Solo si ya se selló)
     if datos_hc.get("bloqueado"):
         pdf.ln(10)
         pdf.set_font("helvetica", "B", 10)
-        pdf.cell(0, 6, f"--- DOCUMENTO FIRMADO Y SELLADO ---", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(w=0, h=6, txt="--- DOCUMENTO FIRMADO Y SELLADO ---", border=0, ln=1, align="C")
         pdf.set_font("helvetica", "", 10)
-        pdf.cell(0, 6, f"Por: {datos_hc.get('firmado_por', '')}", new_x="LMARGIN", new_y="NEXT")
-        pdf.cell(0, 6, f"Fecha: {datos_hc.get('fecha_firma', '')}", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(w=0, h=6, txt=f"Por: {datos_hc.get('firmado_por', '')}", border=0, ln=1)
+        pdf.cell(w=0, h=6, txt=f"Fecha: {datos_hc.get('fecha_firma', '')}", border=0, ln=1)
 
     # Regresa el archivo en formato de bytes listo para descargar
     return bytes(pdf.output())
