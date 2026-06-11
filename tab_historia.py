@@ -437,13 +437,14 @@ def render(db, paciente, id_pac):
                         payload["ad_plan"] = st.text_area("Plan de intervención, modelos y objetivos:", value=datos_hc.get("ad_plan", ""))
                         payload["ad_psiquiatria"] = st.selectbox("¿Necesidad de evaluación psiquiátrica?", ["", "Sí", "No"], index=["", "Sí", "No"].index(datos_hc.get("ad_psiquiatria", "")))
 
-                # ---------------------------------------------------------
+               # ---------------------------------------------------------
                 # 2. PLANTILLA: INFANTO-JUVENIL
                 # ---------------------------------------------------------
                 elif tipo_plantilla == "PSICOLOGÍA INFANTOJUVENIL":
                     with st.expander("II. Datos de Padres/Tutores e III. Motivo", expanded=True):
                         c1, c2 = st.columns(2)
-                        payload["ij_padre"] = st.text_area("Datos del Padre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_padre", ""))
+                        # AQUI ESTÁ LA MAGIA: c1. y c2. devuelven las cajas a su lugar original
+                        payload["ij_padre"] = c1.text_area("Datos del Padre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_padre", ""))
                         payload["ij_madre"] = c2.text_area("Datos de la Madre (Nombre, Edad, Ocupación, Tel):", value=datos_hc.get("ij_madre", ""))
                         payload["ij_acompanante"] = st.text_area("Persona que acompaña al menor:", value=datos_hc.get("ij_acompanante", ""))
                         st.markdown("---")
