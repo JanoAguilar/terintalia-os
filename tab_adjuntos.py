@@ -2,6 +2,7 @@ import streamlit as st
 import base64
 from datetime import datetime
 import time
+import streamlit.components.v1 as components
 
 # =========================================================
 # FUNCIÓN MODAL PARA VISUALIZACIÓN EN PANTALLA COMPLETA
@@ -12,13 +13,15 @@ def modal_visualizador(datos_b64, tipo_archivo, descripcion):
     st.markdown("---")
     
     if "image" in tipo_archivo:
-        # Extrae la imagen y la ajusta al ancho completo de la ventana
         archivo_bytes = base64.b64decode(datos_b64)
         st.image(archivo_bytes, use_container_width=True)
     elif "pdf" in tipo_archivo:
-        # Usamos <embed> que es más resistente a los bloqueos de navegador que el <iframe>
-        pdf_display = f'<embed type="application/pdf" src="data:application/pdf;base64,{datos_b64}" width="100%" height="700">'
-        st.markdown(pdf_display, unsafe_allow_html=True)
+        # BURLAMOS EL BLOQUEO DEL NAVEGADOR USANDO COMPONENTS.HTML Y UN IFRAME
+        pdf_html = f'''
+            <iframe src="data:application/pdf;base64,{datos_b64}#toolbar=0&navpanes=0" 
+            width="100%" height="650px" style="border: none;"></iframe>
+        '''
+        components.html(pdf_html, height=660)
     else:
         st.warning("Formato no soportado para previsualización directa.")
     
@@ -32,18 +35,17 @@ def render(db, id_pac):
     st.markdown("<h4 style='color: #164032; font-size: 16px;'>Expediente Externo (Estudios, Recetas, Derivaciones)</h4>", unsafe_allow_html=True)
     
     with st.form("form_adjunto", clear_on_submit=True):
-        # Aclaramos el límite real en el título para que ignoren el 200MB de Streamlit
-        archivo = st.file_uploader("📎 Subir Archivo (IGNORA AVISO DE 200MB -> TU LÍMITE REAL ES DE 1 MB)", type=["pdf", "jpg", "jpeg", "png"])
+        archivo = st.file_uploader("📎 Subir Archivo (LÍMITE ACTUAL DE BASE DE DATOS: 750 KB)", type=["pdf", "jpg", "jpeg", "png"])
         descripcion = st.text_input("Breve descripción (Ej. Examen de sangre Q.S. 6 elementos)").upper()
         
         if st.form_submit_button("💾 SUBIR ADJUNTO", type="primary", use_container_width=True):
             if archivo and descripcion:
-                # CANDADO ESTRICTO DE 1 MEGABYTE (1 MB = 1,048,576 bytes)
-                if archivo.size > 1048576:
-                    st.error("🚨 ARCHIVO DEMASIADO PESADO: Tu documento supera el límite de 1 MB. Por favor, comprímelo o bájale la resolución antes de subirlo.")
+                # CANDADO AJUSTADO: 750 KB. 
+                # (El Base64 infla el peso un 30%, así que 750KB reales se vuelven ~1MB en texto)
+                if archivo.size > 750000:
+                    st.error("🚨 ARCHIVO MUY PESADO PARA FIRESTORE: El archivo supera los 750 KB. Comprímelo antes de subirlo.")
                 else:
-                    # ANIMACIÓN DE CARGA PARA EL USUARIO
-                    with st.spinner("Cifrando y guardando en la nube..."):
+                    with st.spinner("Cifrando y guardando en la base de datos..."):
                         archivo_bytes = archivo.getvalue()
                         archivo_b64 = base64.b64encode(archivo_bytes).decode('utf-8')
                         tipo_archivo = archivo.type
@@ -57,7 +59,6 @@ def render(db, id_pac):
                             "fecha": datetime.now().strftime("%d/%m/%Y %H:%M")
                         })
                     
-                    # MENSAJE FLOTANTE Y PAUSA PARA QUE SE LOGRE LEER
                     st.toast("✅ ¡Documento guardado exitosamente en el expediente!", icon="🎉")
                     time.sleep(1.5)
                     st.rerun()
@@ -85,12 +86,10 @@ def render(db, id_pac):
                     tipo_archivo = a.get("tipo", "application/pdf")
                     archivo_bytes = base64.b64decode(datos_b64)
                     
-                    # --- BOTÓN QUE DISPARA LA VENTANA GIGANTE (MODAL) ---
                     with col_vis:
                         if st.button("👁️ Visualizar", key=f"vis_{doc_id}", use_container_width=True):
                             modal_visualizador(datos_b64, tipo_archivo, a.get("descripcion", ""))
                     
-                    # --- BOTÓN DE DESCARGA NATIVO ---
                     with col_desc:
                         st.download_button(
                             label="⬇️ Descargar",
