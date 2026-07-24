@@ -16,6 +16,9 @@ def conectar_db():
             nombre_llave = "terintalia-expedientes-firebase-adminsdk-fbsvc-879cea1af8.json"
             cred = credentials.Certificate(nombre_llave)
             
-        firebase_admin.initialize_app(cred)
+        # 3. INICIALIZACIÓN CON PERMISO DE DISCO DURO (STORAGE)
+        firebase_admin.initialize_app(cred, {
+            'storageBucket': 'terintalia-expedientes.firebasestorage.app'
+        })
     
     return firestore.client()
