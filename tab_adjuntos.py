@@ -1,14 +1,37 @@
 import streamlit as st
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import streamlit.components.v1 as components
+from firebase_admin import storage
 
 # =========================================================
-# FUNCIÓN MODAL PARA VISUALIZACIÓN EN PANTALLA COMPLETA
+# MODAL PARA ARCHIVOS NUEVOS (FIREBASE STORAGE / URLs FIRMADAS)
 # =========================================================
-@st.dialog("Visualizador de Documentos Clínicos", width="large")
-def modal_visualizador(datos_b64, tipo_archivo, descripcion):
+@st.dialog("Visor de Documentos Clínicos", width="large")
+def modal_visualizador_url(url, tipo_archivo, descripcion):
+    st.markdown(f"**Documento:** {descripcion}")
+    st.markdown("---")
+    
+    if "image" in tipo_archivo:
+        st.image(url, use_container_width=True)
+    elif "pdf" in tipo_archivo:
+        pdf_html = f'''
+            <iframe src="{url}#toolbar=0&navpanes=0" 
+            width="100%" height="650px" style="border: none;"></iframe>
+        '''
+        components.html(pdf_html, height=660)
+    else:
+        st.warning("Formato no soportado para previsualización directa.")
+    
+    if st.button("Cerrar Visor", use_container_width=True):
+        st.rerun()
+
+# =========================================================
+# MODAL PARA ARCHIVOS VIEJOS (RETROCOMPATIBILIDAD BASE64)
+# =========================================================
+@st.dialog("Visor de Documentos Clínicos (Legado)", width="large")
+def modal_visualizador_b64(datos_b64, tipo_archivo, descripcion):
     st.markdown(f"**Documento:** {descripcion}")
     st.markdown("---")
     
@@ -16,14 +39,11 @@ def modal_visualizador(datos_b64, tipo_archivo, descripcion):
         archivo_bytes = base64.b64decode(datos_b64)
         st.image(archivo_bytes, use_container_width=True)
     elif "pdf" in tipo_archivo:
-        # BURLAMOS EL BLOQUEO DEL NAVEGADOR USANDO COMPONENTS.HTML Y UN IFRAME
         pdf_html = f'''
             <iframe src="data:application/pdf;base64,{datos_b64}#toolbar=0&navpanes=0" 
             width="100%" height="650px" style="border: none;"></iframe>
         '''
         components.html(pdf_html, height=660)
-    else:
-        st.warning("Formato no soportado para previsualización directa.")
     
     if st.button("Cerrar Visor", use_container_width=True):
         st.rerun()
@@ -35,31 +55,31 @@ def render(db, id_pac):
     st.markdown("<h4 style='color: #164032; font-size: 16px;'>Expediente Externo (Estudios, Recetas, Derivaciones)</h4>", unsafe_allow_html=True)
     
     with st.form("form_adjunto", clear_on_submit=True):
-        archivo = st.file_uploader("📎 Subir Archivo (LÍMITE ACTUAL DE BASE DE DATOS: 750 KB)", type=["pdf", "jpg", "jpeg", "png"])
+        archivo = st.file_uploader("📎 Subir Archivo (Límite: 10 MB)", type=["pdf", "jpg", "jpeg", "png"])
         descripcion = st.text_input("Breve descripción (Ej. Examen de sangre Q.S. 6 elementos)").upper()
         
         if st.form_submit_button("💾 SUBIR ADJUNTO", type="primary", use_container_width=True):
             if archivo and descripcion:
-                # CANDADO AJUSTADO: 750 KB. 
-                # (El Base64 infla el peso un 30%, así que 750KB reales se vuelven ~1MB en texto)
-                if archivo.size > 750000:
-                    st.error("🚨 ARCHIVO MUY PESADO PARA FIRESTORE: El archivo supera los 750 KB. Comprímelo antes de subirlo.")
+                # CANDADO PROFESIONAL DE 10 MEGABYTES
+                if archivo.size > 10 * 1024 * 1024:
+                    st.error("🚨 ARCHIVO MUY PESADO: El límite actual es de 10 MB. Comprímelo e intenta de nuevo.")
                 else:
-                    with st.spinner("Cifrando y guardando en la base de datos..."):
-                        archivo_bytes = archivo.getvalue()
-                        archivo_b64 = base64.b64encode(archivo_bytes).decode('utf-8')
-                        tipo_archivo = archivo.type
+                    with st.spinner("Subiendo al disco duro de Firebase Storage..."):
+                        bucket = storage.bucket()
+                        ruta_blob = f"expedientes/{id_pac}/{int(time.time())}_{archivo.name}"
+                        blob = bucket.blob(ruta_blob)
+                        blob.upload_from_string(archivo.getvalue(), content_type=archivo.type)
                         
                         db.collection("pacientes").document(id_pac).collection("adjuntos").add({
                             "descripcion": descripcion,
                             "archivo": archivo.name,
-                            "tipo": tipo_archivo,
-                            "datos_b64": archivo_b64,
+                            "tipo": archivo.type,
+                            "storage_path": ruta_blob,
                             "subido_por": st.session_state.get("nombre", "Especialista"),
                             "fecha": datetime.now().strftime("%d/%m/%Y %H:%M")
                         })
                     
-                    st.toast("✅ ¡Documento guardado exitosamente en el expediente!", icon="🎉")
+                    st.toast("✅ ¡Documento guardado exitosamente en Cloud Storage!", icon="🎉")
                     time.sleep(1.5)
                     st.rerun()
             else:
@@ -81,26 +101,52 @@ def render(db, id_pac):
                     st.write(f"📎 **{a.get('descripcion', 'Documento sin título')}**")
                     st.caption(f"`{a.get('archivo', 'Desconocido')}` | Por: {a.get('subido_por', '')} el {a.get('fecha', '')}")
                 
-                if "datos_b64" in a:
+                # ARCHIVOS EN CLOUD STORAGE (SISTEMA NUEVO)
+                if "storage_path" in a:
+                    ruta_blob = a.get("storage_path")
+                    tipo_archivo = a.get("tipo", "application/pdf")
+                    
+                    try:
+                        bucket = storage.bucket()
+                        blob = bucket.blob(ruta_blob)
+                        url_segura = blob.generate_signed_url(version="v4", expiration=timedelta(minutes=60), method="GET")
+                        
+                        with col_vis:
+                            if st.button("👁️ Visualizar", key=f"vis_{doc_id}", use_container_width=True):
+                                modal_visualizador_url(url_segura, tipo_archivo, a.get("descripcion", ""))
+                        
+                        with col_desc:
+                            enlace_descarga = f'''
+                            <a href="{url_segura}" target="_blank" download style="
+                                display: block; text-align: center; background-color: #f0f2f6; 
+                                padding: 6px; border-radius: 5px; text-decoration: none; 
+                                color: black; font-size: 14px; margin-top: 3px;">
+                                ⬇️ Descargar
+                            </a>
+                            '''
+                            st.markdown(enlace_descarga, unsafe_allow_html=True)
+                    except Exception as e:
+                        with col_vis:
+                            st.error("Error URL")
+                        with col_desc:
+                            st.error("No disponible")
+                
+                # ARCHIVOS VIEJOS (BASE64)
+                elif "datos_b64" in a:
                     datos_b64 = a.get("datos_b64")
                     tipo_archivo = a.get("tipo", "application/pdf")
-                    archivo_bytes = base64.b64decode(datos_b64)
                     
                     with col_vis:
-                        if st.button("👁️ Visualizar", key=f"vis_{doc_id}", use_container_width=True):
-                            modal_visualizador(datos_b64, tipo_archivo, a.get("descripcion", ""))
+                        if st.button("👁️ Visualizar", key=f"vis_b64_{doc_id}", use_container_width=True):
+                            modal_visualizador_b64(datos_b64, tipo_archivo, a.get("descripcion", ""))
                     
                     with col_desc:
-                        st.download_button(
-                            label="⬇️ Descargar",
-                            data=archivo_bytes,
-                            file_name=a.get('archivo', 'adjunto_clinico'),
-                            mime=tipo_archivo,
-                            key=f"dwn_{doc_id}",
-                            use_container_width=True
-                        )
+                        archivo_bytes = base64.b64decode(datos_b64)
+                        st.download_button("⬇️ Descargar", data=archivo_bytes, file_name=a.get('archivo', 'adjunto'), mime=tipo_archivo, key=f"dwn_b64_{doc_id}", use_container_width=True)
+                
+                # ARCHIVOS CADUCADOS LOCALES
                 else:
                     with col_vis:
                         st.button("👁️ N/A", key=f"vis_err_{doc_id}", disabled=True, use_container_width=True)
                     with col_desc:
-                        st.error("Archivo caducado")
+                        st.error("Caducado")
