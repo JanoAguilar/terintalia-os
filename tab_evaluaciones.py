@@ -41,36 +41,38 @@ def render(db, id_pac):
         puntuacion = st.text_input("Puntuación Obtenida (Opcional)")
         interpretacion = st.text_area("Interpretación Clínica / Resultados")
         
-        # --- NUEVO ADJUNTO CONECTADO AL DISCO DURO (STORAGE) ---
+        # --- NUEVO ADJUNTO CON INSTRUCCIONES CLARAS ---
         st.markdown("<h5 style='font-size: 14px; color: #334155; margin-top: 10px;'>📎 Evidencia Documental (Opcional)</h5>", unsafe_allow_html=True)
-        st.caption("Límite: 10 MB. Puede anexar el protocolo calificado, el dibujo del paciente o el reporte en PDF.")
-        archivo_eval = st.file_uploader("Sube el PDF o Imagen de la prueba", type=["pdf", "jpg", "png", "jpeg"], label_visibility="collapsed")
+        
+        # Un mensaje flotante para guiar al usuario
+        st.info("💡 **¿Cómo adjuntar?** Arrastra o selecciona tu archivo en el recuadro de abajo. El documento se subirá a la nube de forma automática cuando presiones el botón azul grande del final.")
+        
+        # Le quitamos el "collapsed" para que se vea el nombre del campo claramente
+        archivo_eval = st.file_uploader("📂 Seleccionar PDF o Imagen (Max. 10 MB)", type=["pdf", "jpg", "png", "jpeg"])
         
         st.write("")
-        if st.form_submit_button("🔐 REGISTRAR Y SELLAR EVALUACIÓN", type="primary", use_container_width=True):
+        # Cambiamos el texto del botón para que el usuario sepa que esto también sube el archivo
+        if st.form_submit_button("🔐 REGISTRAR EVALUACIÓN Y SUBIR EVIDENCIA", type="primary", use_container_width=True):
             if tipo_prueba and interpretacion:
                 
-                # Variables vacías por si el especialista decide no subir ningún archivo
                 nombre_archivo = ""
                 storage_path = ""
                 tipo_archivo = ""
                 
-                # Si se subió un archivo, lo procesamos en Storage
+                # Si se seleccionó un archivo en la caja de arriba, aquí es donde realmente se sube
                 if archivo_eval:
                     if archivo_eval.size > 10 * 1024 * 1024:
                         st.error("🚨 ARCHIVO MUY PESADO: El límite actual es de 10 MB. No se guardó la evaluación.")
-                        st.stop() # Detenemos el guardado para evitar errores
+                        st.stop()
                     else:
                         with st.spinner("Subiendo evidencia al disco duro de Firebase Storage..."):
                             bucket = storage.bucket()
-                            # Organizamos ordenado en una carpeta de evaluaciones
                             storage_path = f"evaluaciones/{id_pac}/{int(time.time())}_{archivo_eval.name}"
                             blob = bucket.blob(storage_path)
                             blob.upload_from_string(archivo_eval.getvalue(), content_type=archivo_eval.type)
                             nombre_archivo = archivo_eval.name
                             tipo_archivo = archivo_eval.type
                 
-                # Preparamos los datos básicos de la evaluación
                 datos_evaluacion = {
                     "prueba": tipo_prueba,
                     "fecha_ap": str(fecha_aplicacion),
@@ -81,12 +83,10 @@ def render(db, id_pac):
                     "fecha_sello": datetime.now().strftime("%Y-%m-%d %H:%M")
                 }
                 
-                # Solo agregamos las variables de archivo si realmente subieron uno
                 if storage_path:
                     datos_evaluacion["storage_path"] = storage_path
                     datos_evaluacion["tipo"] = tipo_archivo
                 
-                # Guardamos en la base de datos Firestore
                 db.collection("pacientes").document(id_pac).collection("evaluaciones").add(datos_evaluacion)
                 
                 st.toast("✅ ¡Evaluación y evidencia selladas exitosamente!", icon="🎉")
@@ -107,10 +107,8 @@ def render(db, id_pac):
             doc_id = e.id
             
             with st.container(border=True):
-                # Detectar si hay evidencia (nueva o local antigua)
                 tiene_archivo = "storage_path" in ev or "archivo_ruta" in ev
                 
-                # Si hay archivo usamos 3 columnas (texto, ver, descargar). Si no, solo 1 para el texto.
                 if tiene_archivo:
                     c_info, c_vis, c_desc = st.columns([2.5, 1, 1])
                 else:
@@ -125,7 +123,6 @@ def render(db, id_pac):
                         st.caption(f"📎 Adjunto: `{ev.get('archivo_nombre')}`")
                 
                 if tiene_archivo:
-                    # 1. SISTEMA NUEVO (ARCHIVOS EN FIREBASE STORAGE)
                     if "storage_path" in ev:
                         ruta_blob = ev.get("storage_path")
                         tipo_archivo = ev.get("tipo", "application/pdf")
@@ -168,7 +165,6 @@ def render(db, id_pac):
                             with c_desc:
                                 st.error("No disponible")
                                 
-                    # 2. SISTEMA VIEJO (CARPETA LOCAL)
                     elif "archivo_ruta" in ev:
                         ruta = ev.get("archivo_ruta")
                         with c_vis:
