@@ -9,7 +9,7 @@ from firebase_admin import storage
 # =========================================================
 @st.dialog("Visor de Pruebas y Evidencias", width="large")
 def modal_visualizador_url(url, tipo_archivo, descripcion):
-    st.markdown(f"**Evaluación:** {descripcion}")
+    st.markdown(f"**Evaluación/Herramienta:** {descripcion}")
     st.markdown("---")
     st.image(url, use_container_width=True)
     if st.button("Cerrar Visor", use_container_width=True):
@@ -19,47 +19,110 @@ def modal_visualizador_url(url, tipo_archivo, descripcion):
 # RENDERIZADO PRINCIPAL
 # =========================================================
 def render(db, id_pac):
-    st.markdown("<h4 style='color: #1E3A8A; font-size: 16px;'>Registro de Pruebas y Evaluaciones (Clinimetría)</h4>", unsafe_allow_html=True)
     
+    # 1. Obtenemos los datos del paciente para saber su especialidad
+    doc_p = db.collection("pacientes").document(id_pac).get()
+    paciente = doc_p.to_dict() if doc_p.exists else {}
+    esp_upper = paciente.get("esp", "").upper()
+    es_nutricion = "NUTRI" in esp_upper
+
+    # 2. Ruteo inteligente del módulo y opciones
+    if es_nutricion:
+        st.markdown("<h4 style='color: #2980B9; font-size: 16px;'>🍏 Evaluaciones Nutricionales / Psiconutrición</h4>", unsafe_allow_html=True)
+        opciones_eval = [
+            "Escala de hambre y saciedad",
+            "Tipos de hambre",
+            "Método del plato",
+            "Recordatorio de 24 horas",
+            "Antropometría",
+            "Conductas alimentarias de riesgo",
+            "Otra (Especificar)"
+        ]
+    else:
+        st.markdown("<h4 style='color: #1E3A8A; font-size: 16px;'>🧠 Registro de Pruebas y Evaluaciones (Clinimetría)</h4>", unsafe_allow_html=True)
+        opciones_eval = [
+            "Inventario de Evaluación de la Personalidad (PAI)",
+            "Escala de Experiencias Disociativas (DES)",
+            "Cociente de Espectro Autista (AQ)",
+            "Escala de Conners Revisada (CRS)",
+            "Test del Dibujo de la Figura Humana (DFH)",
+            "Escala de Inteligencia (WAIS / WISC)",
+            "Otra (Especificar)"
+        ]
+
+    # TRUCO UX: El selector va AFUERA del formulario para que la interfaz cambie dinámicamente
+    herramienta_sel = st.selectbox("📌 Seleccionar Herramienta o Evaluación a registrar:", opciones_eval)
+    
+    st.markdown("---")
+
     with st.form("form_eval", clear_on_submit=True):
-        col_t1, col_t2 = st.columns(2)
-        with col_t1:
-            tipo_prueba = st.selectbox("Instrumento Aplicado", [
-                "Inventario de Evaluación de la Personalidad (PAI)",
-                "Escala de Experiencias Disociativas (DES)",
-                "Cociente de Espectro Autista (AQ)",
-                "Escala de Conners Revisada (CRS)",
-                "Test del Dibujo de la Figura Humana (DFH)",
-                "Escala de Inteligencia (WAIS / WISC)",
-                "Otra (Especificar)"
-            ])
-            if tipo_prueba == "Otra (Especificar)":
-                tipo_prueba = st.text_input("Nombre de la prueba").upper()
-        with col_t2:
-            fecha_aplicacion = st.date_input("Fecha de Aplicación")
         
-        puntuacion = st.text_input("Puntuación Obtenida (Opcional)")
-        interpretacion = st.text_area("Interpretación Clínica / Resultados")
+        tipo_prueba = herramienta_sel
+        if herramienta_sel == "Otra (Especificar)":
+            tipo_prueba = st.text_input("Nombre de la prueba o herramienta").upper()
+            
+        fecha_aplicacion = st.date_input("Fecha de Aplicación")
         
-        # --- NUEVO ADJUNTO CON INSTRUCCIONES EXACTAS ---
-        st.markdown("<h5 style='font-size: 14px; color: #334155; margin-top: 10px;'>📎 Evidencia Documental (Opcional)</h5>", unsafe_allow_html=True)
-        
-        # Mensaje flotante corregido y exacto
-        st.info("💡 **¿Cómo adjuntar?** Selecciona tu archivo en el recuadro de abajo. El documento se subirá a la nube cuando presiones el botón de abajo que dice **'🔐 REGISTRAR EVALUACIÓN Y SUBIR EVIDENCIA'**.")
-        
-        archivo_eval = st.file_uploader("📂 Seleccionar PDF o Imagen (Max. 10 MB)", type=["pdf", "jpg", "png", "jpeg"])
+        # Diccionario dinámico para guardar los datos según la herramienta elegida
+        datos_herramienta = {}
+
+        # ==========================================
+        # CAMPOS DINÁMICOS: HERRAMIENTAS DE NUTRICIÓN
+        # ==========================================
+        if herramienta_sel == "Escala de hambre y saciedad":
+            st.markdown("<h5 style='color: #2980B9; font-size: 14px;'>Escala (1 = Hambre extrema | 10 = Incomodidad por exceso)</h5>", unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            datos_herramienta["hambre_antes"] = c1.slider("Nivel de hambre ANTES de comer:", min_value=1, max_value=10, value=5)
+            datos_herramienta["saciedad_despues"] = c2.slider("Nivel de saciedad DESPUÉS de comer:", min_value=1, max_value=10, value=5)
+            datos_herramienta["observaciones"] = st.text_area("Observaciones clínicas:")
+            
+        elif herramienta_sel == "Tipos de hambre":
+            opciones_hambre = ["Hambre física", "Hambre emocional", "Hambre por ansiedad", "Hambre visual", "Hambre social", "Hambre por aburrimiento", "Hambre por restricción previa", "Hambre por antojo", "Otro"]
+            datos_herramienta["tipos_hambre"] = st.multiselect("Tipos de hambre identificados:", opciones_hambre)
+            datos_herramienta["situacion"] = st.text_area("Situación en la que aparece:")
+            datos_herramienta["emocion"] = st.text_area("Emoción asociada:")
+            datos_herramienta["conducta"] = st.text_area("Conducta alimentaria observada:")
+            
+        elif herramienta_sel == "Método del plato":
+            datos_herramienta["explicado"] = st.radio("¿Se explicó el método del plato al paciente?", ["Sí", "No"], horizontal=True)
+            opciones_comp = ["Verduras", "Proteína", "Cereales / carbohidratos", "Grasas saludables", "Hidratación", "Porciones", "Otro"]
+            datos_herramienta["componentes"] = st.multiselect("Componentes trabajados en sesión:", opciones_comp)
+            datos_herramienta["indicaciones"] = st.text_area("Indicaciones personalizadas:")
+            c1, c2 = st.columns(2)
+            datos_herramienta["material"] = c1.radio("¿Se entregó material físico/digital?", ["No", "Sí"], horizontal=True)
+            datos_herramienta["material_cual"] = c2.text_input("¿Cuál material? (Si aplica)")
+            
+        else:
+            # ==========================================
+            # CAMPOS ESTÁNDAR (Clínimetría / Resto)
+            # ==========================================
+            datos_herramienta["puntuacion"] = st.text_input("Puntuación Obtenida (Opcional)")
+            datos_herramienta["interpretacion"] = st.text_area("Interpretación Clínica / Resultados")
+
+        # --- ADJUNTO EVIDENCIA ---
+        st.markdown("<h5 style='font-size: 14px; color: #334155; margin-top: 15px;'>📎 Evidencia Documental (Opcional)</h5>", unsafe_allow_html=True)
+        st.info("💡 **¿Cómo adjuntar?** Selecciona tu archivo en el recuadro de abajo. El documento se subirá a la nube cuando presiones el botón de **'🔐 REGISTRAR EVALUACIÓN'**.")
+        archivo_eval = st.file_uploader("📂 Seleccionar PDF o Imagen (Max. 10 MB)", type=["pdf", "jpg", "png", "jpeg"], label_visibility="collapsed")
         
         st.write("")
         if st.form_submit_button("🔐 REGISTRAR EVALUACIÓN Y SUBIR EVIDENCIA", type="primary", use_container_width=True):
-            if tipo_prueba and interpretacion:
-                
+            
+            # Validación sencilla: Exigir nombre de la prueba, y la interpretación solo si es el modo estándar
+            es_valido = False
+            if tipo_prueba:
+                if herramienta_sel in ["Escala de hambre y saciedad", "Tipos de hambre", "Método del plato"]:
+                    es_valido = True
+                elif datos_herramienta.get("interpretacion"):
+                    es_valido = True
+            
+            if es_valido:
                 nombre_archivo = ""
                 storage_path = ""
                 tipo_archivo = ""
                 
                 if archivo_eval:
                     if archivo_eval.size > 10 * 1024 * 1024:
-                        st.error("🚨 ARCHIVO MUY PESADO: El límite actual es de 10 MB. No se guardó la evaluación.")
+                        st.error("🚨 ARCHIVO MUY PESADO: El límite actual es de 10 MB. No se guardó el registro.")
                         st.stop()
                     else:
                         with st.spinner("Subiendo evidencia al disco duro de Firebase Storage..."):
@@ -70,34 +133,36 @@ def render(db, id_pac):
                             nombre_archivo = archivo_eval.name
                             tipo_archivo = archivo_eval.type
                 
-                datos_evaluacion = {
+                # Preparamos el payload base
+                datos_bd = {
                     "prueba": tipo_prueba,
                     "fecha_ap": str(fecha_aplicacion),
-                    "puntuacion": puntuacion,
-                    "interpretacion": interpretacion,
                     "archivo_nombre": nombre_archivo,
                     "registrado_por": st.session_state.get("nombre", "Especialista"),
                     "fecha_sello": datetime.now().strftime("%Y-%m-%d %H:%M")
                 }
                 
+                # Inyectamos los datos dinámicos recopilados arriba
+                datos_bd.update(datos_herramienta)
+                
                 if storage_path:
-                    datos_evaluacion["storage_path"] = storage_path
-                    datos_evaluacion["tipo"] = tipo_archivo
+                    datos_bd["storage_path"] = storage_path
+                    datos_bd["tipo"] = tipo_archivo
                 
-                db.collection("pacientes").document(id_pac).collection("evaluaciones").add(datos_evaluacion)
+                db.collection("pacientes").document(id_pac).collection("evaluaciones").add(datos_bd)
                 
-                st.toast("✅ ¡Evaluación y evidencia selladas exitosamente!", icon="🎉")
+                st.toast("✅ ¡Registro sellado y guardado exitosamente!", icon="🎉")
                 time.sleep(1.5)
                 st.rerun()
             else:
-                st.error("El nombre de la prueba y la interpretación son obligatorios.")
+                st.error("⚠️ Faltan datos obligatorios. Si es una prueba clínica, la interpretación es obligatoria.")
 
     # --- HISTORIAL DE EVALUACIONES ---
     st.markdown("---")
     evals = db.collection("pacientes").document(id_pac).collection("evaluaciones").order_by("fecha_sello", direction="DESCENDING").get()
     
     if not evals:
-        st.info("No hay evaluaciones registradas.")
+        st.info("No hay registros previos en este expediente.")
     else:
         for e in evals:
             ev = e.to_dict()
@@ -114,11 +179,31 @@ def render(db, id_pac):
                 with c_info:
                     st.markdown(f"<h5 style='color: #2563EB; margin-bottom: 0;'>📊 {ev.get('prueba', '')}</h5>", unsafe_allow_html=True)
                     st.caption(f"Aplicada el: {ev.get('fecha_ap', '')} | Sellada por {ev.get('registrado_por', '')} el {ev.get('fecha_sello', '')}")
-                    st.write(f"**Puntuación:** {ev.get('puntuacion', 'N/A')}")
-                    st.write(f"**Interpretación:** {ev.get('interpretacion', '')}")
+                    
+                    # ----------------------------------------------------
+                    # RENDERIZADO INTELIGENTE SEGÚN LA HERRAMIENTA GUARDADA
+                    # ----------------------------------------------------
+                    if "hambre_antes" in ev:
+                        st.write(f"**Hambre antes:** {ev.get('hambre_antes')} / 10 | **Saciedad después:** {ev.get('saciedad_despues')} / 10")
+                        st.write(f"**Observaciones:** {ev.get('observaciones', 'Ninguna')}")
+                    elif "tipos_hambre" in ev:
+                        st.write(f"**Tipos identificados:** {', '.join(ev.get('tipos_hambre', []))}")
+                        st.write(f"**Situación:** {ev.get('situacion', '')} | **Emoción:** {ev.get('emocion', '')}")
+                        st.write(f"**Conducta:** {ev.get('conducta', '')}")
+                    elif "explicado" in ev:
+                        st.write(f"**¿Se explicó?:** {ev.get('explicado', '')} | **Material:** {ev.get('material', '')} ({ev.get('material_cual', 'N/A')})")
+                        st.write(f"**Componentes:** {', '.join(ev.get('componentes', []))}")
+                        st.write(f"**Indicaciones:** {ev.get('indicaciones', '')}")
+                    else:
+                        st.write(f"**Puntuación:** {ev.get('puntuacion', 'N/A')}")
+                        st.write(f"**Interpretación:** {ev.get('interpretacion', '')}")
+                        
                     if ev.get('archivo_nombre'):
                         st.caption(f"📎 Adjunto: `{ev.get('archivo_nombre')}`")
                 
+                # ----------------------------------------------------
+                # LÓGICA DE DESCARGA / VISUALIZACIÓN
+                # ----------------------------------------------------
                 if tiene_archivo:
                     if "storage_path" in ev:
                         ruta_blob = ev.get("storage_path")
