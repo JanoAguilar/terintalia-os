@@ -41,17 +41,15 @@ def render(db, id_pac):
         puntuacion = st.text_input("Puntuación Obtenida (Opcional)")
         interpretacion = st.text_area("Interpretación Clínica / Resultados")
         
-        # --- NUEVO ADJUNTO CON INSTRUCCIONES CLARAS ---
+        # --- NUEVO ADJUNTO CON INSTRUCCIONES EXACTAS ---
         st.markdown("<h5 style='font-size: 14px; color: #334155; margin-top: 10px;'>📎 Evidencia Documental (Opcional)</h5>", unsafe_allow_html=True)
         
-        # Un mensaje flotante para guiar al usuario
-        st.info("💡 **¿Cómo adjuntar?** Arrastra o selecciona tu archivo en el recuadro de abajo. El documento se subirá a la nube de forma automática cuando presiones el botón azul grande del final.")
+        # Mensaje flotante corregido y exacto
+        st.info("💡 **¿Cómo adjuntar?** Selecciona tu archivo en el recuadro de abajo. El documento se subirá a la nube cuando presiones el botón de abajo que dice **'🔐 REGISTRAR EVALUACIÓN Y SUBIR EVIDENCIA'**.")
         
-        # Le quitamos el "collapsed" para que se vea el nombre del campo claramente
         archivo_eval = st.file_uploader("📂 Seleccionar PDF o Imagen (Max. 10 MB)", type=["pdf", "jpg", "png", "jpeg"])
         
         st.write("")
-        # Cambiamos el texto del botón para que el usuario sepa que esto también sube el archivo
         if st.form_submit_button("🔐 REGISTRAR EVALUACIÓN Y SUBIR EVIDENCIA", type="primary", use_container_width=True):
             if tipo_prueba and interpretacion:
                 
@@ -59,7 +57,6 @@ def render(db, id_pac):
                 storage_path = ""
                 tipo_archivo = ""
                 
-                # Si se seleccionó un archivo en la caja de arriba, aquí es donde realmente se sube
                 if archivo_eval:
                     if archivo_eval.size > 10 * 1024 * 1024:
                         st.error("🚨 ARCHIVO MUY PESADO: El límite actual es de 10 MB. No se guardó la evaluación.")
