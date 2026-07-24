@@ -77,7 +77,6 @@ def render(db, id_pac, paciente=None):
     lista_sesiones = []
     lista_sesiones.append(sesion_sugerida)
     
-    # Agregamos "Sesión 1" si sugirió Evaluación, para darles la opción de saltársela si quieren
     if sig_sesion_num not in lista_sesiones:
         lista_sesiones.append(sig_sesion_num)
     
@@ -121,7 +120,6 @@ def render(db, id_pac, paciente=None):
                 
                 c_ses, c_fec = st.columns(2)
                 
-                # Respetar la sesión guardada en el borrador, si no, usar la inteligente
                 valor_guardado = datos_borrador.get("sesion_num", sesion_sugerida)
                 if valor_guardado not in lista_sesiones:
                     lista_sesiones.insert(0, valor_guardado)
@@ -145,31 +143,26 @@ def render(db, id_pac, paciente=None):
                 payload["fecha_sesion_str"] = str(fecha_obj)
 
                 # ---------------------------------------------------------
-                # 1. NOTA S.O.A.P. (Psicología)
+                # 1. NOTA S.O.A.P. (Psicología) - NUEVO DISEÑO REDACCIÓN LIBRE
                 # ---------------------------------------------------------
                 if tipo_nota == "NOTA S.O.A.P. (Psicología)":
-                    st.markdown("<h5 style='color: #164032;'>S — Subjetivo (Lo que refiere el paciente)</h5>", unsafe_allow_html=True)
-                    payload["s_motivo"] = st.text_area("Motivo de hoy:", value=datos_borrador.get("s_motivo", ""))
-                    payload["s_cambios"] = st.text_area("Cambios desde última sesión:", value=datos_borrador.get("s_cambios", ""))
-                    payload["s_sintomas"] = st.text_area("Síntomas reportados y Estado emocional:", value=datos_borrador.get("s_sintomas", ""))
-                    payload["s_eventos"] = st.text_area("Eventos relevantes:", value=datos_borrador.get("s_eventos", ""))
+                    st.info("💡 **Redacción Libre:** Escribe todo tu reporte en los cuadros. Tienen altura adaptativa para textos largos.")
+                    
+                    st.markdown("<h5 style='color: #164032; margin-bottom: 0px;'>🗣️ S — Subjetivo</h5>", unsafe_allow_html=True)
+                    st.caption("Lo que refiere el paciente (síntomas, quejas, discurso principal).")
+                    payload["s_subjetivo"] = st.text_area("Subjetivo", value=datos_borrador.get("s_subjetivo", ""), label_visibility="collapsed", height=150, placeholder="El paciente refiere que durante la semana se sintió...")
 
-                    st.markdown("<h5 style='color: #164032;'>O — Objetivo (Lo que observa el clínico)</h5>", unsafe_allow_html=True)
-                    c1, c2 = st.columns(2)
-                    payload["o_afecto"] = c1.text_area("Afecto y Conducta:", value=datos_borrador.get("o_afecto", ""))
-                    payload["o_lenguaje"] = c2.text_area("Lenguaje y Pensamiento:", value=datos_borrador.get("o_lenguaje", ""))
-                    c3, c4 = st.columns(2)
-                    payload["o_regulacion"] = c3.text_area("Regulación emocional y Activación:", value=datos_borrador.get("o_regulacion", ""))
-                    payload["o_riesgos"] = c4.text_area("Seguridad / Riesgos:", value=datos_borrador.get("o_riesgos", ""))
+                    st.markdown("<h5 style='color: #164032; margin-bottom: 0px; margin-top: 15px;'>👁️ O — Objetivo</h5>", unsafe_allow_html=True)
+                    st.caption("Lo que observa el clínico (lenguaje corporal, estado de ánimo visible, hechos observables).")
+                    payload["o_objetivo"] = st.text_area("Objetivo", value=datos_borrador.get("o_objetivo", ""), label_visibility="collapsed", height=150, placeholder="Se observa al paciente con actitud colaborativa, contacto visual mantenido...")
 
-                    st.markdown("<h5 style='color: #164032;'>A — Análisis (Impresión y Avances)</h5>", unsafe_allow_html=True)
-                    payload["a_hipotesis"] = st.text_area("Hipótesis clínica y Relación con formulación:", value=datos_borrador.get("a_hipotesis", ""))
-                    payload["a_avances"] = st.text_area("Avances, Dificultades y Respuesta terapéutica:", value=datos_borrador.get("a_avances", ""))
+                    st.markdown("<h5 style='color: #164032; margin-bottom: 0px; margin-top: 15px;'>🧠 A — Análisis</h5>", unsafe_allow_html=True)
+                    st.caption("Impresión diagnóstica, evaluación clínica y avances respecto a sesiones previas.")
+                    payload["a_analisis"] = st.text_area("Análisis", value=datos_borrador.get("a_analisis", ""), label_visibility="collapsed", height=150, placeholder="Se percibe una disminución en los niveles de ansiedad en comparación con la sesión anterior...")
 
-                    st.markdown("<h5 style='color: #164032;'>P — Plan (Estrategia)</h5>", unsafe_allow_html=True)
-                    payload["p_tecnicas"] = st.text_area("Técnicas utilizadas hoy e Intervenciones:", value=datos_borrador.get("p_tecnicas", ""))
-                    payload["p_tareas"] = st.text_area("Tareas asignadas e Indicaciones:", value=datos_borrador.get("p_tareas", ""))
-                    payload["p_proxima"] = st.text_area("Objetivo para la próxima sesión:", value=datos_borrador.get("p_proxima", ""))
+                    st.markdown("<h5 style='color: #164032; margin-bottom: 0px; margin-top: 15px;'>🎯 P — Plan</h5>", unsafe_allow_html=True)
+                    st.caption("Estrategia terapéutica, tareas asignadas o próximos pasos.")
+                    payload["p_plan"] = st.text_area("Plan", value=datos_borrador.get("p_plan", ""), label_visibility="collapsed", height=150, placeholder="1. Continuar con técnica de reestructuración cognitiva.\n2. Tarea: Registro de pensamientos automáticos...")
 
                 # ---------------------------------------------------------
                 # 2. NOTA E.M.D.R.
@@ -376,10 +369,18 @@ def render(db, id_pac, paciente=None):
                 st.caption(f"Sellada en sistema el: {n.get('fecha_sistema', '')}")
                 
                 if tipo == "NOTA S.O.A.P. (Psicología)":
-                    st.markdown(f"**S:** Motivo: {n.get('s_motivo','')} | Síntomas: {n.get('s_sintomas','')} | Eventos: {n.get('s_eventos','')}")
-                    st.markdown(f"**O:** Afecto: {n.get('o_afecto','')} | Lenguaje: {n.get('o_lenguaje','')} | Regulación: {n.get('o_regulacion','')} | Riesgos: {n.get('o_riesgos','')}")
-                    st.markdown(f"**A:** Hipótesis: {n.get('a_hipotesis','')} | Avances: {n.get('a_avances','')}")
-                    st.markdown(f"**P:** Técnicas: {n.get('p_tecnicas','')} | Tareas: {n.get('p_tareas','')} | Próxima: {n.get('p_proxima','')}")
+                    # Retrocompatibilidad: Si tiene el nuevo formato, muestra los textos completos
+                    if "s_subjetivo" in n:
+                        st.markdown(f"**🗣️ S — Subjetivo:**\n\n{n.get('s_subjetivo','')}")
+                        st.markdown(f"**👁️ O — Objetivo:**\n\n{n.get('o_objetivo','')}")
+                        st.markdown(f"**🧠 A — Análisis:**\n\n{n.get('a_analisis','')}")
+                        st.markdown(f"**🎯 P — Plan:**\n\n{n.get('p_plan','')}")
+                    # Si tiene el formato viejo, muestra los campos fragmentados
+                    else:
+                        st.markdown(f"**S:** Motivo: {n.get('s_motivo','')} | Síntomas: {n.get('s_sintomas','')} | Eventos: {n.get('s_eventos','')}")
+                        st.markdown(f"**O:** Afecto: {n.get('o_afecto','')} | Lenguaje: {n.get('o_lenguaje','')} | Regulación: {n.get('o_regulacion','')} | Riesgos: {n.get('o_riesgos','')}")
+                        st.markdown(f"**A:** Hipótesis: {n.get('a_hipotesis','')} | Avances: {n.get('a_avances','')}")
+                        st.markdown(f"**P:** Técnicas: {n.get('p_tecnicas','')} | Tareas: {n.get('p_tareas','')} | Próxima: {n.get('p_proxima','')}")
                 
                 elif tipo == "NOTA E.M.D.R.":
                     st.markdown(f"**Blanco:** {n.get('emdr_problema','')} - {n.get('emdr_blanco','')}")
