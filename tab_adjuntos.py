@@ -2,7 +2,6 @@ import streamlit as st
 import base64
 from datetime import datetime, timedelta
 import time
-import streamlit.components.v1 as components
 from firebase_admin import storage
 
 # =========================================================
@@ -16,11 +15,12 @@ def modal_visualizador_url(url, tipo_archivo, descripcion):
     if "image" in tipo_archivo:
         st.image(url, use_container_width=True)
     elif "pdf" in tipo_archivo:
+        # TRUCO 1: Usamos HTML puro (st.markdown) en lugar de components.html 
+        # Esto evita que Streamlit envuelva el PDF en un sandbox de seguridad extra
         pdf_html = f'''
-            <iframe src="{url}#toolbar=0&navpanes=0" 
-            width="100%" height="650px" style="border: none;"></iframe>
+            <iframe src="{url}" width="100%" height="680px" style="border: none;"></iframe>
         '''
-        components.html(pdf_html, height=660)
+        st.markdown(pdf_html, unsafe_allow_html=True)
     else:
         st.warning("Formato no soportado para previsualización directa.")
     
@@ -40,10 +40,9 @@ def modal_visualizador_b64(datos_b64, tipo_archivo, descripcion):
         st.image(archivo_bytes, use_container_width=True)
     elif "pdf" in tipo_archivo:
         pdf_html = f'''
-            <iframe src="data:application/pdf;base64,{datos_b64}#toolbar=0&navpanes=0" 
-            width="100%" height="650px" style="border: none;"></iframe>
+            <iframe src="data:application/pdf;base64,{datos_b64}" width="100%" height="680px" style="border: none;"></iframe>
         '''
-        components.html(pdf_html, height=660)
+        st.markdown(pdf_html, unsafe_allow_html=True)
     
     if st.button("Cerrar Visor", use_container_width=True):
         st.rerun()
@@ -60,7 +59,6 @@ def render(db, id_pac):
         
         if st.form_submit_button("💾 SUBIR ADJUNTO", type="primary", use_container_width=True):
             if archivo and descripcion:
-                # CANDADO PROFESIONAL DE 10 MEGABYTES
                 if archivo.size > 10 * 1024 * 1024:
                     st.error("🚨 ARCHIVO MUY PESADO: El límite actual es de 10 MB. Comprímelo e intenta de nuevo.")
                 else:
@@ -68,6 +66,8 @@ def render(db, id_pac):
                         bucket = storage.bucket()
                         ruta_blob = f"expedientes/{id_pac}/{int(time.time())}_{archivo.name}"
                         blob = bucket.blob(ruta_blob)
+                        
+                        # Subimos asignando explicitamente que es un PDF/Imagen
                         blob.upload_from_string(archivo.getvalue(), content_type=archivo.type)
                         
                         db.collection("pacientes").document(id_pac).collection("adjuntos").add({
@@ -109,7 +109,14 @@ def render(db, id_pac):
                     try:
                         bucket = storage.bucket()
                         blob = bucket.blob(ruta_blob)
-                        url_segura = blob.generate_signed_url(version="v4", expiration=timedelta(minutes=60), method="GET")
+                        
+                        # TRUCO 2: Generamos URL segura con la instrucción de abrir "en linea" (inline)
+                        url_segura = blob.generate_signed_url(
+                            version="v4", 
+                            expiration=timedelta(minutes=60), 
+                            method="GET",
+                            response_disposition="inline"
+                        )
                         
                         with col_vis:
                             if st.button("👁️ Visualizar", key=f"vis_{doc_id}", use_container_width=True):
