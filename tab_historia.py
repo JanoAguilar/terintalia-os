@@ -13,7 +13,7 @@ def render(db, paciente, id_pac):
     bloqueado = datos_hc.get("bloqueado", False)
 
     # =========================================================
-    # APARTADO I: FICHA DE IDENTIFICACIÓN (Solo Lectura)
+    # APARTADO I: FICHA DE IDENTIFICACIÓN (CON ALIAS ANTI-ERRORES)
     # =========================================================
     c_tit, c_pdf = st.columns([3, 1])
     with c_tit:
@@ -23,35 +23,47 @@ def render(db, paciente, id_pac):
         st.button("📥 Exportar a PDF", key="btn_pdf_hc", use_container_width=True)
 
     with st.container(border=True):
-        # 👤 Datos Personales
+        # 👤 Datos Personales y Demográficos
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>👤 Datos Personales</p>", unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        c1.write(f"**Nombre Completo:** {paciente.get('nombre', 'N/A')}")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.write(f"**Nombre:** {paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))}")
         c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-        c3.write(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
+        c3.write(f"**Sexo:** {paciente.get('sexo', paciente.get('genero', 'N/A'))}")
+        c4.write(f"**F. Nacimiento:** {paciente.get('fecha_nacimiento', paciente.get('fecha_nac', 'N/A'))}")
         
-        c4, c5 = st.columns(2)
-        c4.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
-        c5.write(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
+        c5, c6, c7, c8 = st.columns(4)
+        c5.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
+        c6.write(f"**Escolaridad:** {paciente.get('escolaridad', paciente.get('grado_estudios', 'N/A'))}")
+        c7.write(f"**Ocupación:** {paciente.get('ocupacion', paciente.get('profesion', 'N/A'))}")
+        c8.write(f"**Religión:** {paciente.get('religion', paciente.get('creencia', 'N/A'))}")
         
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
         
         # 📞 Contacto y Dirección
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>📞 Contacto y Dirección</p>", unsafe_allow_html=True)
-        c6, c7, c8 = st.columns(3)
-        c6.write(f"**Teléfono Celular:** {paciente.get('telefono', 'N/A')}")
-        c7.write(f"**Teléfono Casa:** {paciente.get('tel_casa', 'N/A')}")
-        c8.write(f"**Correo Electrónico:** {paciente.get('correo', 'N/A')}")
-        st.write(f"**Domicilio Completo:** {paciente.get('domicilio', 'N/A')}")
+        c9, c10, c11 = st.columns(3)
+        c9.write(f"**Tel. Celular:** {paciente.get('telefono', paciente.get('celular', 'N/A'))}")
+        c10.write(f"**Tel. Casa/Otro:** {paciente.get('tel_casa', paciente.get('telefono_fijo', paciente.get('tel_fijo', 'N/A')))}")
+        c11.write(f"**Correo:** {paciente.get('correo', paciente.get('email', 'N/A'))}")
+        st.write(f"**Domicilio Completo:** {paciente.get('domicilio', paciente.get('direccion', 'N/A'))}")
         
+        st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+
+        # 🏥 Datos de Atención
+        st.markdown("<p style='color: #2980B9; font-weight: bold; margin-bottom: 5px;'>🏥 Datos de Atención Clínica</p>", unsafe_allow_html=True)
+        c12, c13, c14 = st.columns(3)
+        c12.write(f"**Especialista:** {paciente.get('esp', paciente.get('especialista_asignado', 'N/A'))}")
+        c13.write(f"**Tipo de Terapia:** {paciente.get('tipo_terapia', paciente.get('servicio', 'N/A'))}")
+        c14.write(f"**Modalidad:** {paciente.get('modalidad', 'N/A')}")
+
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
         
         # 🚨 Emergencia
         st.markdown("<p style='color: #D35400; font-weight: bold; margin-bottom: 5px;'>🚨 Emergencia</p>", unsafe_allow_html=True)
-        c9, c10, c11 = st.columns(3)
-        c9.write(f"**Llamar a:** {paciente.get('contacto_emergencia', 'N/A')}")
-        c10.write(f"**Parentesco:** {paciente.get('parentesco_emergencia', 'N/A')}")
-        c11.write(f"**Tel. Emergencia:** {paciente.get('tel_emergencia', 'N/A')}")
+        c15, c16, c17 = st.columns(3)
+        c15.write(f"**Llamar a:** {paciente.get('contacto_emergencia', paciente.get('nombre_emergencia', 'N/A'))}")
+        c16.write(f"**Parentesco:** {paciente.get('parentesco_emergencia', paciente.get('parentesco', 'N/A'))}")
+        c17.write(f"**Tel. Emergencia:** {paciente.get('tel_emergencia', paciente.get('telefono_emergencia', 'N/A'))}")
         
     st.write("")
 
@@ -237,13 +249,12 @@ def render(db, paciente, id_pac):
                         payload["p_plan"] = st.text_area("Plan de intervención (Modelo y Frecuencia):", value=datos_hc.get("p_plan", ""))
 
                 # ---------------------------------------------------------
-                # 4. PLANTILLA: NUTRICIÓN (ACTUALIZADA)
+                # 4. PLANTILLA: NUTRICIÓN
                 # ---------------------------------------------------------
                 elif tipo_plantilla == "NUTRICIÓN":
                     with st.expander("II. Motivo, Síntomas y Antecedentes", expanded=True):
                         payload["nut_motivo"] = st.text_area("Motivo de consulta:", value=datos_hc.get("nut_motivo", ""))
                         
-                        # --- NUEVO: SÍNTOMAS GASTROINTESTINALES (OPCIONALES) ---
                         st.markdown("<h5 style='color: #2980B9; font-size: 14px; margin-bottom: 5px;'>Síntomas Gastrointestinales</h5>", unsafe_allow_html=True)
                         opciones_gi = ["Reflujo", "Gastritis / ardor estomacal", "Náusea", "Vómito", "Distensión abdominal", "Dolor abdominal", "Estreñimiento", "Diarrea", "Colitis / intestino irritable referido", "Gases / flatulencia", "Saciedad temprana", "Otro"]
                         payload["nut_sintomas_gi_lista"] = st.multiselect("Seleccione los síntomas presentes (Opcional):", opciones_gi, default=datos_hc.get("nut_sintomas_gi_lista", []))
@@ -257,19 +268,16 @@ def render(db, paciente, id_pac):
 
                     with st.expander("IV. Hábitos Alimenticios y Recordatorio 24h"):
                         
-                        # --- NUEVO: CONSUMO DE AGUA ---
                         c_agua1, c_agua2 = st.columns(2)
                         payload["nut_agua_litros"] = c_agua1.text_input("Cantidad aproximada de agua (litros/día):", value=datos_hc.get("nut_agua_litros", ""))
                         opciones_agua = ["", "Menos de 1 litro", "1–1.5 litros", "1.5–2 litros", "Más de 2 litros", "No sabe"]
                         payload["nut_agua_rango"] = c_agua2.selectbox("Rango de agua consumida:", opciones_agua, index=opciones_agua.index(datos_hc.get("nut_agua_rango", "")) if datos_hc.get("nut_agua_rango", "") in opciones_agua else 0)
                         
-                        # --- NUEVO: TIPO DE ACEITE ---
                         c_ace1, c_ace2 = st.columns(2)
                         opciones_aceite = ["", "Aceite vegetal", "Aceite de oliva", "Aceite de canola", "Aceite de aguacate", "Manteca", "Mantequilla", "No utiliza aceite", "Otro"]
                         payload["nut_aceite"] = c_ace1.selectbox("Tipo de aceite con el que cocina:", opciones_aceite, index=opciones_aceite.index(datos_hc.get("nut_aceite", "")) if datos_hc.get("nut_aceite", "") in opciones_aceite else 0)
                         payload["nut_aceite_otro_opcional"] = c_ace2.text_input("Si eligió 'Otro' en aceite, especifique (Opcional):", value=datos_hc.get("nut_aceite_otro_opcional", ""))
                         
-                        # --- NUEVO: CONSUMO DE SAL ---
                         c_sal1, c_sal2 = st.columns(2)
                         opciones_sal = ["", "Bajo", "Moderado", "Alto", "No sabe / no identifica"]
                         payload["nut_sal"] = c_sal1.selectbox("Consumo de sal al día:", opciones_sal, index=opciones_sal.index(datos_hc.get("nut_sal", "")) if datos_hc.get("nut_sal", "") in opciones_sal else 0)
@@ -277,7 +285,6 @@ def render(db, paciente, id_pac):
                         
                         st.markdown("---")
                         
-                        # --- NUEVO: ALIMENTOS Y ALERGIAS SEPARADAS ---
                         c_pref1, c_pref2 = st.columns(2)
                         payload["nut_pref_si"] = c_pref1.text_area("Alimentos preferidos:", value=datos_hc.get("nut_pref_si", ""))
                         payload["nut_pref_no"] = c_pref2.text_area("Alimentos no preferidos o que evita:", value=datos_hc.get("nut_pref_no", ""))
@@ -349,11 +356,10 @@ def render(db, paciente, id_pac):
                 st.rerun()
             
             if btn_firmar:
-                # Modificamos la validación para ignorar campos marcados como opcionales o listas (checklist) vacías
                 campos_faltantes = []
                 for k, v in payload.items():
                     if "opcional" in k.lower() or "_lista" in k.lower():
-                        continue  # Omitimos de la validación estricta
+                        continue 
                     if str(v).strip() == "":
                         campos_faltantes.append(k.replace("_", " ").title())
                 
