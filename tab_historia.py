@@ -13,7 +13,7 @@ def render(db, paciente, id_pac):
     bloqueado = datos_hc.get("bloqueado", False)
 
     # =========================================================
-    # APARTADO I: FICHA DE IDENTIFICACIÓN (CON ALIAS ANTI-ERRORES)
+    # APARTADO I: FICHA DE IDENTIFICACIÓN (MAPEADA EXACTAMENTE A TU BD)
     # =========================================================
     c_tit, c_pdf = st.columns([3, 1])
     with c_tit:
@@ -26,34 +26,33 @@ def render(db, paciente, id_pac):
         # 👤 Datos Personales y Demográficos
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>👤 Datos Personales</p>", unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
-        c1.write(f"**Nombre:** {paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))}")
+        c1.write(f"**Nombre:** {paciente.get('nombre', 'N/A')}")
         c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-        c3.write(f"**Sexo:** {paciente.get('sexo', paciente.get('genero', 'N/A'))}")
-        c4.write(f"**F. Nacimiento:** {paciente.get('fecha_nacimiento', paciente.get('fecha_nac', 'N/A'))}")
+        c3.write(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
+        c4.write(f"**F. Nacimiento:** {paciente.get('fecha_nac', 'N/A')}")
         
-        c5, c6, c7, c8 = st.columns(4)
+        c5, c6, c7 = st.columns(3)
         c5.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
-        c6.write(f"**Escolaridad:** {paciente.get('escolaridad', paciente.get('grado_estudios', 'N/A'))}")
-        c7.write(f"**Ocupación:** {paciente.get('ocupacion', paciente.get('profesion', 'N/A'))}")
-        c8.write(f"**Religión:** {paciente.get('religion', paciente.get('creencia', 'N/A'))}")
+        c6.write(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
+        c7.write(f"**Ocupación:** {paciente.get('ocupacion', 'N/A')}")
         
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
         
         # 📞 Contacto y Dirección
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>📞 Contacto y Dirección</p>", unsafe_allow_html=True)
         c9, c10, c11 = st.columns(3)
-        c9.write(f"**Tel. Celular:** {paciente.get('telefono', paciente.get('celular', 'N/A'))}")
-        c10.write(f"**Tel. Casa/Otro:** {paciente.get('tel_casa', paciente.get('telefono_fijo', paciente.get('tel_fijo', 'N/A')))}")
-        c11.write(f"**Correo:** {paciente.get('correo', paciente.get('email', 'N/A'))}")
-        st.write(f"**Domicilio Completo:** {paciente.get('domicilio', paciente.get('direccion', 'N/A'))}")
+        c9.write(f"**Tel. Celular:** {paciente.get('telefono', 'N/A')}")
+        c10.write(f"**Tel. Casa/Otro:** {paciente.get('tel_casa', 'N/A')}")
+        c11.write(f"**Correo:** {paciente.get('correo', 'N/A')}")
+        st.write(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
         
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
         # 🏥 Datos de Atención
         st.markdown("<p style='color: #2980B9; font-weight: bold; margin-bottom: 5px;'>🏥 Datos de Atención Clínica</p>", unsafe_allow_html=True)
         c12, c13, c14 = st.columns(3)
-        c12.write(f"**Especialista:** {paciente.get('esp', paciente.get('especialista_asignado', 'N/A'))}")
-        c13.write(f"**Tipo de Terapia:** {paciente.get('tipo_terapia', paciente.get('servicio', 'N/A'))}")
+        c12.write(f"**Especialista:** {paciente.get('esp', 'N/A')}")
+        c13.write(f"**Tipo de Terapia:** {paciente.get('tipo_terapia', 'N/A')}")
         c14.write(f"**Modalidad:** {paciente.get('modalidad', 'N/A')}")
 
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
@@ -61,9 +60,9 @@ def render(db, paciente, id_pac):
         # 🚨 Emergencia
         st.markdown("<p style='color: #D35400; font-weight: bold; margin-bottom: 5px;'>🚨 Emergencia</p>", unsafe_allow_html=True)
         c15, c16, c17 = st.columns(3)
-        c15.write(f"**Llamar a:** {paciente.get('contacto_emergencia', paciente.get('nombre_emergencia', 'N/A'))}")
-        c16.write(f"**Parentesco:** {paciente.get('parentesco_emergencia', paciente.get('parentesco', 'N/A'))}")
-        c17.write(f"**Tel. Emergencia:** {paciente.get('tel_emergencia', paciente.get('telefono_emergencia', 'N/A'))}")
+        c15.write(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
+        c16.write(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
+        c17.write(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
         
     st.write("")
 
