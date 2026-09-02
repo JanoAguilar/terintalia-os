@@ -13,7 +13,7 @@ def render(db, paciente, id_pac):
     bloqueado = datos_hc.get("bloqueado", False)
 
     # =========================================================
-    # APARTADO I: FICHA DE IDENTIFICACIÓN (MAPEADA EXACTAMENTE A TU BD)
+    # APARTADO I: FICHA DE IDENTIFICACIÓN (CON ALIAS ANTI-ERRORES)
     # =========================================================
     c_tit, c_pdf = st.columns([3, 1])
     with c_tit:
@@ -26,33 +26,34 @@ def render(db, paciente, id_pac):
         # 👤 Datos Personales y Demográficos
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>👤 Datos Personales</p>", unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
-        c1.write(f"**Nombre:** {paciente.get('nombre', 'N/A')}")
+        c1.write(f"**Nombre:** {paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))}")
         c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-        c3.write(f"**Sexo:** {paciente.get('sexo', 'N/A')}")
-        c4.write(f"**F. Nacimiento:** {paciente.get('fecha_nac', 'N/A')}")
+        c3.write(f"**Sexo:** {paciente.get('sexo', paciente.get('genero', 'N/A'))}")
+        c4.write(f"**F. Nacimiento:** {paciente.get('fecha_nacimiento', paciente.get('fecha_nac', 'N/A'))}")
         
-        c5, c6, c7 = st.columns(3)
+        c5, c6, c7, c8 = st.columns(4)
         c5.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
-        c6.write(f"**Escolaridad:** {paciente.get('escolaridad', 'N/A')}")
-        c7.write(f"**Ocupación:** {paciente.get('ocupacion', 'N/A')}")
+        c6.write(f"**Escolaridad:** {paciente.get('escolaridad', paciente.get('grado_estudios', 'N/A'))}")
+        c7.write(f"**Ocupación:** {paciente.get('ocupacion', paciente.get('profesion', 'N/A'))}")
+        c8.write(f"**Religión:** {paciente.get('religion', paciente.get('creencia', 'N/A'))}")
         
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
         
         # 📞 Contacto y Dirección
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>📞 Contacto y Dirección</p>", unsafe_allow_html=True)
         c9, c10, c11 = st.columns(3)
-        c9.write(f"**Tel. Celular:** {paciente.get('telefono', 'N/A')}")
-        c10.write(f"**Tel. Casa/Otro:** {paciente.get('tel_casa', 'N/A')}")
-        c11.write(f"**Correo:** {paciente.get('correo', 'N/A')}")
-        st.write(f"**Domicilio Completo:** {paciente.get('direccion', 'N/A')}")
+        c9.write(f"**Tel. Celular:** {paciente.get('telefono', paciente.get('celular', 'N/A'))}")
+        c10.write(f"**Tel. Casa/Otro:** {paciente.get('tel_casa', paciente.get('telefono_fijo', paciente.get('tel_fijo', 'N/A')))}")
+        c11.write(f"**Correo:** {paciente.get('correo', paciente.get('email', 'N/A'))}")
+        st.write(f"**Domicilio Completo:** {paciente.get('domicilio', paciente.get('direccion', 'N/A'))}")
         
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
         # 🏥 Datos de Atención
         st.markdown("<p style='color: #2980B9; font-weight: bold; margin-bottom: 5px;'>🏥 Datos de Atención Clínica</p>", unsafe_allow_html=True)
         c12, c13, c14 = st.columns(3)
-        c12.write(f"**Especialista:** {paciente.get('esp', 'N/A')}")
-        c13.write(f"**Tipo de Terapia:** {paciente.get('tipo_terapia', 'N/A')}")
+        c12.write(f"**Especialista:** {paciente.get('esp', paciente.get('especialista_asignado', 'N/A'))}")
+        c13.write(f"**Tipo de Terapia:** {paciente.get('tipo_terapia', paciente.get('servicio', 'N/A'))}")
         c14.write(f"**Modalidad:** {paciente.get('modalidad', 'N/A')}")
 
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
@@ -60,9 +61,9 @@ def render(db, paciente, id_pac):
         # 🚨 Emergencia
         st.markdown("<p style='color: #D35400; font-weight: bold; margin-bottom: 5px;'>🚨 Emergencia</p>", unsafe_allow_html=True)
         c15, c16, c17 = st.columns(3)
-        c15.write(f"**Llamar a:** {paciente.get('contacto_emergencia_nom', 'N/A')}")
-        c16.write(f"**Parentesco:** {paciente.get('contacto_emergencia_par', 'N/A')}")
-        c17.write(f"**Tel. Emergencia:** {paciente.get('contacto_emergencia_tel', 'N/A')}")
+        c15.write(f"**Llamar a:** {paciente.get('contacto_emergencia', paciente.get('contacto_emergencia_nom', paciente.get('nombre_emergencia', 'N/A')))}")
+        c16.write(f"**Parentesco:** {paciente.get('parentesco_emergencia', paciente.get('contacto_emergencia_par', paciente.get('parentesco', 'N/A')))}")
+        c17.write(f"**Tel. Emergencia:** {paciente.get('tel_emergencia', paciente.get('contacto_emergencia_tel', paciente.get('telefono_emergencia', 'N/A')))}")
         
     st.write("")
 
@@ -127,7 +128,7 @@ def render(db, paciente, id_pac):
                         payload["ad_factores"] = st.text_area("Factores desencadenantes/agravantes:", value=datos_hc.get("ad_factores", ""))
                         payload["ad_impacto"] = st.text_area("Impacto (Personal, Familiar, Social, Laboral):", value=datos_hc.get("ad_impacto", ""))
 
-                    with st.expander("IV. Antecedentes Personales y V. Historia Familiar"):
+                    with st.expander("IV. Antecedentes Personales"):
                         c1, c2 = st.columns(2)
                         payload["ad_ant_medicos"] = c1.text_area("Antecedentes médicos relevantes:", value=datos_hc.get("ad_ant_medicos", ""))
                         payload["ad_ant_psiq"] = c2.text_area("Tratamiento psiquiátrico previo:", value=datos_hc.get("ad_ant_psiq", ""))
@@ -137,10 +138,42 @@ def render(db, paciente, id_pac):
                         payload["ad_riesgo_suicida"] = st.text_area("Intentos suicidas, autolesiones o ideación actual:", value=datos_hc.get("ad_riesgo_suicida", ""))
                         payload["ad_sustancias"] = st.text_area("Consumo de alcohol u otras sustancias:", value=datos_hc.get("ad_sustancias", ""))
                         payload["ad_trauma"] = st.text_area("Eventos traumáticos (abuso, negligencia, violencia):", value=datos_hc.get("ad_trauma", ""))
-                        st.markdown("---")
-                        payload["ad_fam_comp"] = st.text_area("Composición familiar actual:", value=datos_hc.get("ad_fam_comp", ""))
-                        payload["ad_fam_relacion"] = st.text_area("Relación con figuras parentales:", value=datos_hc.get("ad_fam_relacion", ""))
-                        payload["ad_fam_ant"] = st.text_area("Antecedentes familiares (salud mental, adicciones):", value=datos_hc.get("ad_fam_ant", ""))
+
+                    with st.expander("V. Historia familiar, evolutiva y relacional"):
+                        # 1. Composición
+                        payload["ad_fam_comp"] = st.text_area(
+                            "1. Composición familiar actual (¿Con quién vive? Parentesco, edades, cambios recientes):", 
+                            value=datos_hc.get("ad_fam_comp", ""))
+                        
+                        # 2. Familia de origen
+                        payload["ad_fam_origen"] = st.text_area(
+                            "2. Familia de origen y contexto de crianza (Con quién creció, cuidadores principales, migraciones, estructura familiar):", 
+                            value=datos_hc.get("ad_fam_origen", ""))
+                        
+                        # 3. Relación figuras parentales
+                        payload["ad_fam_relacion"] = st.text_area(
+                            "3. Relación con figuras parentales o cuidadores (Disponibilidad emocional, protección, límites, sobreprotección, rechazo):", 
+                            value=datos_hc.get("ad_fam_relacion", ""))
+                        
+                        # 4. Dinámica familiar
+                        payload["ad_fam_dinamica"] = st.text_area(
+                            "4. Dinámica familiar durante el desarrollo (Comunicación, resolución de conflictos, violencia, consumo de sustancias, inestabilidad):", 
+                            value=datos_hc.get("ad_fam_dinamica", ""))
+                        
+                        # 5. Socioemocional
+                        payload["ad_fam_socioemocional"] = st.text_area(
+                            "5. Historia socioemocional y adaptación (Adaptación escolar, pares, aislamiento, bullying, impacto de eventos):", 
+                            value=datos_hc.get("ad_fam_socioemocional", ""))
+                        
+                        # 6. Pérdidas y adversidades
+                        payload["ad_fam_adversidades"] = st.text_area(
+                            "6. Pérdidas, separaciones y experiencias adversas (Duelos, abandonos, hospitalizaciones, abuso, accidentes):", 
+                            value=datos_hc.get("ad_fam_adversidades", ""))
+                        
+                        # 7. Salud mental hereditaria
+                        payload["ad_fam_ant"] = st.text_area(
+                            "7. Antecedentes familiares de salud mental y adicciones (Trastornos conocidos, tratamientos, suicidio, adicciones):", 
+                            value=datos_hc.get("ad_fam_ant", ""))
 
                     with st.expander("VI. Funcionamiento Actual y VII. Estado Mental"):
                         c1, c2, c3 = st.columns(3)
