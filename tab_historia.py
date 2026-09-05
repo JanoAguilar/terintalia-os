@@ -19,11 +19,9 @@ def render(db, paciente, id_pac):
     with c_tit:
         st.markdown("<h4 style='color: #164032; margin-top: 0px;'>📋 I. Ficha de Identificación y Datos Generales</h4>", unsafe_allow_html=True)
     with c_pdf:
-        # Botón estructural para la exportación de la Historia Clínica a PDF
         st.button("📥 Exportar a PDF", key="btn_pdf_hc", use_container_width=True)
 
     with st.container(border=True):
-        # 👤 Datos Personales y Demográficos
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>👤 Datos Personales</p>", unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
         c1.write(f"**Nombre:** {paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))}")
@@ -39,7 +37,6 @@ def render(db, paciente, id_pac):
         
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
         
-        # 📞 Contacto y Dirección
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>📞 Contacto y Dirección</p>", unsafe_allow_html=True)
         c9, c10, c11 = st.columns(3)
         c9.write(f"**Tel. Celular:** {paciente.get('telefono', paciente.get('celular', 'N/A'))}")
@@ -49,7 +46,6 @@ def render(db, paciente, id_pac):
         
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-        # 🏥 Datos de Atención
         st.markdown("<p style='color: #2980B9; font-weight: bold; margin-bottom: 5px;'>🏥 Datos de Atención Clínica</p>", unsafe_allow_html=True)
         c12, c13, c14 = st.columns(3)
         c12.write(f"**Especialista:** {paciente.get('esp', paciente.get('especialista_asignado', 'N/A'))}")
@@ -58,7 +54,6 @@ def render(db, paciente, id_pac):
 
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
         
-        # 🚨 Emergencia
         st.markdown("<p style='color: #D35400; font-weight: bold; margin-bottom: 5px;'>🚨 Emergencia</p>", unsafe_allow_html=True)
         c15, c16, c17 = st.columns(3)
         c15.write(f"**Llamar a:** {paciente.get('contacto_emergencia', paciente.get('contacto_emergencia_nom', paciente.get('nombre_emergencia', 'N/A')))}")
@@ -96,7 +91,6 @@ def render(db, paciente, id_pac):
             st.markdown("<h5 style='color: #164032;'>Datos Registrados en el Expediente:</h5>", unsafe_allow_html=True)
             for key, value in datos_hc.items():
                 if key not in ["bloqueado", "firmado_por", "fecha_firma"] and "opcional" not in key.lower():
-                    # Formateo visual para las listas (como el checklist gastrointestinal)
                     if isinstance(value, list):
                         value = ", ".join(value) if value else "Ninguno"
                     nombre_campo = key.replace("_", " ").title()
@@ -128,7 +122,7 @@ def render(db, paciente, id_pac):
                         payload["ad_factores"] = st.text_area("Factores desencadenantes/agravantes:", value=datos_hc.get("ad_factores", ""))
                         payload["ad_impacto"] = st.text_area("Impacto (Personal, Familiar, Social, Laboral):", value=datos_hc.get("ad_impacto", ""))
 
-                    with st.expander("IV. Antecedentes Personales"):
+                    with st.expander("IV. Antecedentes Personales (Médicos, Psiquiátricos y Trauma)"):
                         c1, c2 = st.columns(2)
                         payload["ad_ant_medicos"] = c1.text_area("Antecedentes médicos relevantes:", value=datos_hc.get("ad_ant_medicos", ""))
                         payload["ad_ant_psiq"] = c2.text_area("Tratamiento psiquiátrico previo:", value=datos_hc.get("ad_ant_psiq", ""))
@@ -140,40 +134,13 @@ def render(db, paciente, id_pac):
                         payload["ad_trauma"] = st.text_area("Eventos traumáticos (abuso, negligencia, violencia):", value=datos_hc.get("ad_trauma", ""))
 
                     with st.expander("V. Historia familiar, evolutiva y relacional"):
-                        # 1. Composición
-                        payload["ad_fam_comp"] = st.text_area(
-                            "1. Composición familiar actual (¿Con quién vive? Parentesco, edades, cambios recientes):", 
-                            value=datos_hc.get("ad_fam_comp", ""))
-                        
-                        # 2. Familia de origen
-                        payload["ad_fam_origen"] = st.text_area(
-                            "2. Familia de origen y contexto de crianza (Con quién creció, cuidadores principales, migraciones, estructura familiar):", 
-                            value=datos_hc.get("ad_fam_origen", ""))
-                        
-                        # 3. Relación figuras parentales
-                        payload["ad_fam_relacion"] = st.text_area(
-                            "3. Relación con figuras parentales o cuidadores (Disponibilidad emocional, protección, límites, sobreprotección, rechazo):", 
-                            value=datos_hc.get("ad_fam_relacion", ""))
-                        
-                        # 4. Dinámica familiar
-                        payload["ad_fam_dinamica"] = st.text_area(
-                            "4. Dinámica familiar durante el desarrollo (Comunicación, resolución de conflictos, violencia, consumo de sustancias, inestabilidad):", 
-                            value=datos_hc.get("ad_fam_dinamica", ""))
-                        
-                        # 5. Socioemocional
-                        payload["ad_fam_socioemocional"] = st.text_area(
-                            "5. Historia socioemocional y adaptación (Adaptación escolar, pares, aislamiento, bullying, impacto de eventos):", 
-                            value=datos_hc.get("ad_fam_socioemocional", ""))
-                        
-                        # 6. Pérdidas y adversidades
-                        payload["ad_fam_adversidades"] = st.text_area(
-                            "6. Pérdidas, separaciones y experiencias adversas (Duelos, abandonos, hospitalizaciones, abuso, accidentes):", 
-                            value=datos_hc.get("ad_fam_adversidades", ""))
-                        
-                        # 7. Salud mental hereditaria
-                        payload["ad_fam_ant"] = st.text_area(
-                            "7. Antecedentes familiares de salud mental y adicciones (Trastornos conocidos, tratamientos, suicidio, adicciones):", 
-                            value=datos_hc.get("ad_fam_ant", ""))
+                        payload["ad_fam_comp"] = st.text_area("1. Composición familiar actual (¿Con quién vive? Parentesco, edades, cambios recientes):", value=datos_hc.get("ad_fam_comp", ""))
+                        payload["ad_fam_origen"] = st.text_area("2. Familia de origen y contexto de crianza (Con quién creció, cuidadores principales, migraciones):", value=datos_hc.get("ad_fam_origen", ""))
+                        payload["ad_fam_relacion"] = st.text_area("3. Relación con figuras parentales o cuidadores (Disponibilidad emocional, protección, límites, rechazo):", value=datos_hc.get("ad_fam_relacion", ""))
+                        payload["ad_fam_dinamica"] = st.text_area("4. Dinámica familiar durante el desarrollo (Comunicación, resolución de conflictos, violencia, inestabilidad):", value=datos_hc.get("ad_fam_dinamica", ""))
+                        payload["ad_fam_socioemocional"] = st.text_area("5. Historia socioemocional y adaptación (Adaptación escolar, pares, aislamiento, bullying):", value=datos_hc.get("ad_fam_socioemocional", ""))
+                        payload["ad_fam_adversidades"] = st.text_area("6. Pérdidas, separaciones y experiencias adversas (Duelos, abandonos, hospitalizaciones, abuso):", value=datos_hc.get("ad_fam_adversidades", ""))
+                        payload["ad_fam_ant"] = st.text_area("7. Antecedentes familiares de salud mental y adicciones (Trastornos conocidos, suicidio, adicciones):", value=datos_hc.get("ad_fam_ant", ""))
 
                     with st.expander("VI. Funcionamiento Actual y VII. Estado Mental"):
                         c1, c2, c3 = st.columns(3)
@@ -230,14 +197,19 @@ def render(db, paciente, id_pac):
                         payload["ij_desarrollo"] = st.text_area("Desarrollo temprano (Palabras, marcha, esfínteres):", value=datos_hc.get("ij_desarrollo", ""))
                         payload["ij_apego"] = st.text_area("Apego temprano / Cuidadores principales:", value=datos_hc.get("ij_apego", ""))
 
-                    with st.expander("VI. Ant. Médicos y VII. Historia Familiar"):
+                    with st.expander("VI. Antecedentes Médicos y Psiquiátricos"):
                         payload["ij_medicos"] = st.text_area("Enfermedades médicas y tratamientos actuales:", value=datos_hc.get("ij_medicos", ""))
                         payload["ij_psi"] = st.text_area("Tratamientos psico/psiquiátricos previos y trauma:", value=datos_hc.get("ij_psi", ""))
                         payload["ij_riesgos"] = st.text_area("Intentos autolesivos / Sustancias / Trauma / ASI:", value=datos_hc.get("ij_riesgos", ""))
-                        st.markdown("---")
-                        payload["ij_fam_comp"] = st.text_area("Composición familiar y personas con quien vive:", value=datos_hc.get("ij_fam_comp", ""))
-                        payload["ij_fam_dinamica"] = st.text_area("Relación parental y estilo de crianza:", value=datos_hc.get("ij_fam_dinamica", ""))
-                        payload["ij_fam_ant"] = st.text_area("Antecedentes familiares (Ansiedad, Depresión, Violencia, etc.):", value=datos_hc.get("ij_fam_ant", ""))
+                    
+                    with st.expander("VII. Historia familiar, evolutiva y relacional"):
+                        payload["ij_fam_comp"] = st.text_area("1. Composición familiar actual (¿Con quién vive? Parentesco, edades, cambios recientes):", value=datos_hc.get("ij_fam_comp", ""))
+                        payload["ij_fam_origen"] = st.text_area("2. Familia de origen y contexto de crianza (Con quién creció, cuidadores, migraciones):", value=datos_hc.get("ij_fam_origen", ""))
+                        payload["ij_fam_relacion"] = st.text_area("3. Relación con figuras parentales o cuidadores (Disponibilidad emocional, protección, límites):", value=datos_hc.get("ij_fam_relacion", ""))
+                        payload["ij_fam_dinamica"] = st.text_area("4. Dinámica familiar durante el desarrollo (Comunicación, resolución de conflictos, inestabilidad):", value=datos_hc.get("ij_fam_dinamica", ""))
+                        payload["ij_fam_socioemocional"] = st.text_area("5. Historia socioemocional y adaptación (Adaptación escolar, pares, aislamiento, bullying):", value=datos_hc.get("ij_fam_socioemocional", ""))
+                        payload["ij_fam_adversidades"] = st.text_area("6. Pérdidas, separaciones y experiencias adversas (Duelos, abandonos, abuso, accidentes):", value=datos_hc.get("ij_fam_adversidades", ""))
+                        payload["ij_fam_ant"] = st.text_area("7. Antecedentes familiares de salud mental y adicciones (Ansiedad, depresión, sustancias, etc.):", value=datos_hc.get("ij_fam_ant", ""))
 
                     with st.expander("VIII. Funcionamiento Actual y IX. Escolar"):
                         c1, c2 = st.columns(2)
@@ -272,7 +244,17 @@ def render(db, paciente, id_pac):
                         payload["p_fortalezas"] = st.text_area("Fortalezas de la relación:", value=datos_hc.get("p_fortalezas", ""))
                         payload["p_conflictos"] = st.text_area("Principales conflictos y temas recurrentes:", value=datos_hc.get("p_conflictos", ""))
 
-                    with st.expander("V. Patrones, VI. Violencia y VII. Plan"):
+                    with st.expander("V. Historia familiar, evolutiva y relacional (De ambos integrantes)"):
+                        st.info("💡 Describa de manera integrada o separada los aspectos relevantes de ambos integrantes en cada rubro.")
+                        payload["p_fam_comp"] = st.text_area("1. Composición familiar actual (Hijos, dependientes, cohabitantes):", value=datos_hc.get("p_fam_comp", ""))
+                        payload["p_fam_origen"] = st.text_area("2. Familias de origen y contexto de crianza de cada uno:", value=datos_hc.get("p_fam_origen", ""))
+                        payload["p_fam_relacion"] = st.text_area("3. Relación con figuras parentales o cuidadores de cada uno:", value=datos_hc.get("p_fam_relacion", ""))
+                        payload["p_fam_dinamica"] = st.text_area("4. Dinámicas familiares de origen (Patrones aprendidos):", value=datos_hc.get("p_fam_dinamica", ""))
+                        payload["p_fam_socioemocional"] = st.text_area("5. Historia socioemocional y relaciones pasadas de cada uno:", value=datos_hc.get("p_fam_socioemocional", ""))
+                        payload["p_fam_adversidades"] = st.text_area("6. Pérdidas, separaciones y experiencias adversas previas a la relación:", value=datos_hc.get("p_fam_adversidades", ""))
+                        payload["p_fam_ant"] = st.text_area("7. Antecedentes familiares de salud mental y adicciones en ambos lados:", value=datos_hc.get("p_fam_ant", ""))
+
+                    with st.expander("VI. Patrones, VII. Violencia y VIII. Plan"):
                         payload["p_patrones"] = st.text_area("Patrones de interacción (Inicio del conflicto, reacciones, escalada, reparación):", value=datos_hc.get("p_patrones", ""))
                         st.markdown("---")
                         st.warning("⚠️ **Evaluación de Violencia y Seguridad**")
@@ -284,22 +266,29 @@ def render(db, paciente, id_pac):
                 # 4. PLANTILLA: NUTRICIÓN
                 # ---------------------------------------------------------
                 elif tipo_plantilla == "NUTRICIÓN":
-                    with st.expander("II. Motivo, Síntomas y Antecedentes", expanded=True):
+                    with st.expander("II. Motivo y Síntomas", expanded=True):
                         payload["nut_motivo"] = st.text_area("Motivo de consulta:", value=datos_hc.get("nut_motivo", ""))
-                        
                         st.markdown("<h5 style='color: #2980B9; font-size: 14px; margin-bottom: 5px;'>Síntomas Gastrointestinales</h5>", unsafe_allow_html=True)
                         opciones_gi = ["Reflujo", "Gastritis / ardor estomacal", "Náusea", "Vómito", "Distensión abdominal", "Dolor abdominal", "Estreñimiento", "Diarrea", "Colitis / intestino irritable referido", "Gases / flatulencia", "Saciedad temprana", "Otro"]
                         payload["nut_sintomas_gi_lista"] = st.multiselect("Seleccione los síntomas presentes (Opcional):", opciones_gi, default=datos_hc.get("nut_sintomas_gi_lista", []))
                         payload["nut_sintomas_gi_obs_opcional"] = st.text_area("Observaciones sobre síntomas gastrointestinales (Opcional):", value=datos_hc.get("nut_sintomas_gi_obs_opcional", ""))
-                        
                         st.markdown("---")
-                        c1, c2 = st.columns(2)
-                        payload["nut_medicos"] = c1.text_area("Médicos, Quirúrgicos y Familiares:", value=datos_hc.get("nut_medicos", ""))
-                        payload["nut_signos_fisicos"] = c2.text_area("Signos físicos (Piel, uñas, cabello, etc.):", value=datos_hc.get("nut_signos_fisicos", ""))
-                        payload["nut_meds"] = st.text_area("Medicamentos, Suplementos, Tabaco/Drogas:", value=datos_hc.get("nut_meds", ""))
+                        payload["nut_signos_fisicos"] = st.text_area("Signos físicos generales (Piel, uñas, cabello, etc.):", value=datos_hc.get("nut_signos_fisicos", ""))
 
-                    with st.expander("IV. Hábitos Alimenticios y Recordatorio 24h"):
+                    with st.expander("III. Antecedentes Médicos Personales"):
+                        payload["nut_medicos"] = st.text_area("Antecedentes Médicos y Quirúrgicos:", value=datos_hc.get("nut_medicos", ""))
+                        payload["nut_meds"] = st.text_area("Medicamentos, Suplementos, Tabaco/Drogas:", value=datos_hc.get("nut_meds", ""))
                         
+                    with st.expander("IV. Historia familiar, evolutiva y relacional"):
+                        payload["nut_fam_comp"] = st.text_area("1. Composición familiar actual (¿Con quién vive?):", value=datos_hc.get("nut_fam_comp", ""))
+                        payload["nut_fam_origen"] = st.text_area("2. Familia de origen y contexto de crianza:", value=datos_hc.get("nut_fam_origen", ""))
+                        payload["nut_fam_relacion"] = st.text_area("3. Relación con figuras parentales o cuidadores:", value=datos_hc.get("nut_fam_relacion", ""))
+                        payload["nut_fam_dinamica"] = st.text_area("4. Dinámica familiar y relación con la comida en la infancia:", value=datos_hc.get("nut_fam_dinamica", ""))
+                        payload["nut_fam_socioemocional"] = st.text_area("5. Historia socioemocional y adaptación:", value=datos_hc.get("nut_fam_socioemocional", ""))
+                        payload["nut_fam_adversidades"] = st.text_area("6. Pérdidas, separaciones y experiencias adversas:", value=datos_hc.get("nut_fam_adversidades", ""))
+                        payload["nut_fam_ant"] = st.text_area("7. Antecedentes familiares de salud (Obesidad, Diabetes, TCA, Adicciones, etc.):", value=datos_hc.get("nut_fam_ant", ""))
+
+                    with st.expander("V. Hábitos Alimenticios y Recordatorio 24h"):
                         c_agua1, c_agua2 = st.columns(2)
                         payload["nut_agua_litros"] = c_agua1.text_input("Cantidad aproximada de agua (litros/día):", value=datos_hc.get("nut_agua_litros", ""))
                         opciones_agua = ["", "Menos de 1 litro", "1–1.5 litros", "1.5–2 litros", "Más de 2 litros", "No sabe"]
@@ -316,7 +305,6 @@ def render(db, paciente, id_pac):
                         payload["nut_sal_obs_opcional"] = c_sal2.text_input("Observaciones sobre la sal (Opcional):", value=datos_hc.get("nut_sal_obs_opcional", ""))
                         
                         st.markdown("---")
-                        
                         c_pref1, c_pref2 = st.columns(2)
                         payload["nut_pref_si"] = c_pref1.text_area("Alimentos preferidos:", value=datos_hc.get("nut_pref_si", ""))
                         payload["nut_pref_no"] = c_pref2.text_area("Alimentos no preferidos o que evita:", value=datos_hc.get("nut_pref_no", ""))
@@ -331,12 +319,12 @@ def render(db, paciente, id_pac):
                         payload["nut_frecuencia"] = c_hor2.text_area("Frecuencia (Frutas, verduras, cereales, etc.):", value=datos_hc.get("nut_frecuencia", ""))
                         payload["nut_rec24"] = st.text_area("Recordatorio de 24 horas:", value=datos_hc.get("nut_rec24", ""))
 
-                    with st.expander("V. Actividad, VI. Emocional y VII. Sueño"):
+                    with st.expander("VI. Actividad, VII. Emocional y VIII. Sueño"):
                         payload["nut_actividad"] = st.text_area("Actividad física (Tipo, frecuencia, intensidad):", value=datos_hc.get("nut_actividad", ""))
                         payload["nut_emocional"] = st.text_area("Estado emocional (Comer por estrés, atracones, culpa):", value=datos_hc.get("nut_emocional", ""))
                         payload["nut_sueno"] = st.text_area("Calidad del sueño y horas:", value=datos_hc.get("nut_sueno", ""))
 
-                    with st.expander("VIII. Antropometría, IX. Objetivos y X. Plan"):
+                    with st.expander("IX. Antropometría, X. Objetivos y XI. Plan"):
                         c1, c2, c3, c4 = st.columns(4)
                         payload["nut_peso"] = c1.text_area("Peso (kg)", value=datos_hc.get("nut_peso", ""))
                         payload["nut_talla"] = c2.text_area("Estatura (cm)", value=datos_hc.get("nut_talla", ""))
@@ -357,15 +345,24 @@ def render(db, paciente, id_pac):
                         payload["f_mecanismo"] = st.text_area("Inicio y Mecanismo de lesión (accidente, sobrecarga, etc.):", value=datos_hc.get("f_mecanismo", ""))
                         payload["f_tratamientos"] = st.text_area("Tratamientos previos y Estudios médicos:", value=datos_hc.get("f_tratamientos", ""))
 
-                    with st.expander("IV. Antecedentes y V. Evaluación Funcional"):
-                        payload["f_ant"] = st.text_area("Enfermedades, cirugías, medicamentos y lesiones previas:", value=datos_hc.get("f_ant", ""))
+                    with st.expander("IV. Antecedentes Médicos y V. Evaluación Funcional"):
+                        payload["f_ant_medicos"] = st.text_area("Enfermedades, cirugías, medicamentos y lesiones previas:", value=datos_hc.get("f_ant_medicos", ""))
                         st.markdown("---")
                         c1, c2 = st.columns(2)
                         payload["f_dolor_eva"] = c1.text_area("Dolor (Escala EVA 0-10):", value=datos_hc.get("f_dolor_eva", ""))
                         payload["f_dolor_tipo"] = c2.text_area("Tipo de dolor (punzante, opresivo, quemante):", value=datos_hc.get("f_dolor_tipo", ""))
                         payload["f_factores"] = st.text_area("Factores que aumentan o alivian el dolor:", value=datos_hc.get("f_factores", ""))
 
-                    with st.expander("VI. Exploración, VII. Diagnóstico e VIII. Plan"):
+                    with st.expander("VI. Historia familiar, evolutiva y relacional"):
+                        payload["f_fam_comp"] = st.text_area("1. Composición familiar actual (¿Con quién vive?):", value=datos_hc.get("f_fam_comp", ""))
+                        payload["f_fam_origen"] = st.text_area("2. Familia de origen y contexto de crianza:", value=datos_hc.get("f_fam_origen", ""))
+                        payload["f_fam_relacion"] = st.text_area("3. Relación con figuras parentales o cuidadores:", value=datos_hc.get("f_fam_relacion", ""))
+                        payload["f_fam_dinamica"] = st.text_area("4. Dinámica familiar durante el desarrollo:", value=datos_hc.get("f_fam_dinamica", ""))
+                        payload["f_fam_socioemocional"] = st.text_area("5. Historia socioemocional y adaptación:", value=datos_hc.get("f_fam_socioemocional", ""))
+                        payload["f_fam_adversidades"] = st.text_area("6. Pérdidas, separaciones y experiencias adversas:", value=datos_hc.get("f_fam_adversidades", ""))
+                        payload["f_fam_ant"] = st.text_area("7. Antecedentes familiares de salud generales y/o adicciones:", value=datos_hc.get("f_fam_ant", ""))
+
+                    with st.expander("VII. Exploración, VIII. Diagnóstico e IX. Plan"):
                         payload["f_exploracion"] = st.text_area("Inspección, Palpación, Rango de movimiento y Fuerza:", value=datos_hc.get("f_exploracion", ""))
                         payload["f_pruebas"] = st.text_area("Pruebas especiales y Limitaciones funcionales:", value=datos_hc.get("f_pruebas", ""))
                         st.markdown("---")
