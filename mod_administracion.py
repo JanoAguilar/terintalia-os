@@ -35,7 +35,7 @@ def render_administracion(db):
         nombre_id = f"{d['nombre_completo']} ({d['especialista_id_interno']})"
         if area not in dict_esp_por_area:
             dict_esp_por_area[area] = []
-            dict_esp_por_area[area].append(nombre_id)
+        dict_esp_por_area[area].append(nombre_id)
 
     # ==========================================
     # PESTAÑA 1: ESPECIALISTAS
@@ -50,11 +50,9 @@ def render_administracion(db):
             st.warning("No hay especialistas registrados.")
         else:
             df_esp = pd.DataFrame(lista_esp)
-            
-            # 1. Mostrar vista resumida en el Grid
             st.dataframe(df_esp[["especialista_id_interno", "nombre_completo", "especialidad", "estatus"]], use_container_width=True, hide_index=True)
             
-            # 2. Botón para exportar toda la información
+            # Exportar Especialistas
             csv_esp = df_esp.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Exportar Info. Completa de Especialistas (CSV)",
@@ -64,10 +62,10 @@ def render_administracion(db):
             )
 
             st.markdown("---")
-            st.markdown("<h4 style='color: #E67E22; font-size: 16px;'>🛠️ Modificar Especialista</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='color: #E67E22; font-size: 16px;'>🛠️ Gestión de Especialista</h4>", unsafe_allow_html=True)
             
             nombres_esp = {f"{e['nombre_completo']} ({e['especialista_id_interno']})": e for e in lista_esp}
-            esp_seleccionado = st.selectbox("Seleccione el Especialista a editar:", list(nombres_esp.keys()))
+            esp_seleccionado = st.selectbox("Seleccione el Especialista a gestionar:", list(nombres_esp.keys()))
             
             datos_esp = nombres_esp[esp_seleccionado]
             id_interno = datos_esp['especialista_id_interno']
@@ -78,6 +76,7 @@ def render_administracion(db):
                 col_i.write(f"**Especialista:** {esp_seleccionado}")
                 col_e.write(f"**Estatus:** `{estatus_actual}`")
 
+                # --- 1. EDICIÓN ESPECIALISTA ---
                 with st.expander("✏️ Editar Información y Estatus", expanded=False):
                     with st.form(f"form_edit_esp_{id_interno}"):
                         c1, c2 = st.columns(2)
@@ -110,6 +109,37 @@ def render_administracion(db):
                             dat = h.to_dict()
                             st.markdown(f"<small><b>{dat['fecha']}</b> | <b>{dat['accion']}</b> por {dat['autor']}</small><br><small style='color:#666;'>{dat['detalles']}</small><hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
 
+                # --- 2. ZONA DE PELIGRO (ELIMINAR ESPECIALISTA) ---
+                st.markdown("<br>", unsafe_allow_html=True)
+                with st.expander("⚠️ ELIMINAR ESPECIALISTA (Zona de Peligro)", expanded=False):
+                    # Consultar si el especialista tiene pacientes activos asignados
+                    docs_pacientes = db.collection("pacientes").where("med", "==", esp_seleccionado).get()
+                    cantidad_pacientes = len(docs_pacientes)
+
+                    if cantidad_pacientes > 0:
+                        st.error(f"🚨 **ACCIÓN BLOQUEADA:** Este especialista tiene **{cantidad_pacientes} pacientes** asignados actualmente.")
+                        st.warning("Para poder eliminar a este especialista, **primero debes reasignar a todos sus pacientes** a otro médico desde la pestaña 'Gestión de Pacientes'.")
+                    else:
+                        st.error(f"Estás a punto de eliminar definitivamente el perfil de **{esp_seleccionado}**.\n\nEsta acción es **irreversible**.")
+                        
+                        c_del_esp1, c_del_esp2 = st.columns([2, 1])
+                        with c_del_esp1:
+                            clave_borrado_esp = st.text_input("Ingresa la clave de autorización para eliminar:", type="password", key=f"clave_del_esp_{id_interno}")
+                        
+                        with c_del_esp2:
+                            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                            if st.button("🗑️ Proceder a Eliminar", type="primary", use_container_width=True, key=f"btn_del_esp_{id_interno}"):
+                                if clave_borrado_esp == "5years":
+                                    with st.spinner("Eliminando especialista..."):
+                                        db.collection("especialistas").document(id_interno).delete()
+                                    st.success("✅ Especialista eliminado exitosamente.")
+                                    time.sleep(1.5)
+                                    st.rerun()
+                                elif clave_borrado_esp == "":
+                                    st.warning("Ingresa la clave para habilitar el borrado.")
+                                else:
+                                    st.error("❌ Clave de autorización incorrecta.")
+
     # ==========================================
     # PESTAÑA 2: PACIENTES
     # ==========================================
@@ -122,30 +152,61 @@ def render_administracion(db):
         if not lista_pac:
             st.warning("No hay pacientes registrados.")
         else:
-            df_pac = pd.DataFrame(lista_pac)
+            # 1. Grid Visual Resumido
+            df_pac_visual = pd.DataFrame(lista_pac)
             busqueda = st.text_input("🔍 Buscar Paciente por Nombre o Folio").upper()
-            
-            # Filtramos el DataFrame si hay búsqueda
             if busqueda:
-                df_pac = df_pac[df_pac['nombre'].str.contains(busqueda) | df_pac['id_p'].str.contains(busqueda)]
+                df_pac_visual = df_pac_visual[df_pac_visual['nombre'].str.contains(busqueda) | df_pac_visual['id_p'].str.contains(busqueda)]
             
-            # 1. Mostrar vista resumida en el Grid
-            st.dataframe(df_pac[["id_p", "nombre", "esp", "med", "status"]], use_container_width=True, hide_index=True)
+            st.dataframe(df_pac_visual[["id_p", "nombre", "esp", "med", "status"]], use_container_width=True, hide_index=True)
             
-            # 2. Botón para exportar toda la información (respeta si hay un filtro de búsqueda aplicado)
-            csv_pac = df_pac.to_csv(index=False).encode('utf-8')
+            # --- LÓGICA DE EXPORTACIÓN CON ESTRUCTURA EXACTA ---
+            datos_exportar = []
+            for p in lista_pac:
+                # Si aplicaron búsqueda, exportamos solo los filtrados, si no, todos.
+                if busqueda and (busqueda not in p.get('nombre', '').upper() and busqueda not in p.get('id_p', '').upper()):
+                    continue
+                
+                # Mapeo exacto solicitado por el usuario
+                fila_export = {
+                    "NUMERO DE EXPEDIENTE": p.get("id_p", ""),
+                    "ESPECIALIDAD": p.get("esp", ""),
+                    "ESPECIALISTA TRATANTE": p.get("med", ""),
+                    "status": p.get("status", ""),
+                    "modalidad": p.get("modalidad", ""),
+                    "fecha_registro": p.get("fecha_registro", ""),
+                    "NOMBRE DEL PACIENTE": p.get("nombre_titular", p.get("nombre", "")),
+                    "edad": p.get("edad", ""),
+                    "fecha_nac": p.get("fecha_nac", ""),
+                    "telefono": p.get("telefono", ""),
+                    "correo": p.get("correo", ""),
+                    "ocupacion": p.get("ocupacion", ""),
+                    "escolaridad": p.get("escolaridad", ""),
+                    "tipo_terapia": p.get("tipo_terapia", ""),
+                    "nombre_tutor": p.get("nombre_tutor", ""),
+                    "estado_civil": p.get("estado_civil", ""),
+                    "direccion": p.get("direccion", ""),
+                    "NOMBRE DEL CONTACTO DE EMERGENCIA": p.get("contacto_emergencia_nom", ""),
+                    "TELEFONO DE CONTACTO DE EMERGENCIA": p.get("contacto_emergencia_tel", ""),
+                    "PARENTEZCO CONTACTO DE EMERGENCIA": p.get("contacto_emergencia_par", "")
+                }
+                datos_exportar.append(fila_export)
+
+            df_export = pd.DataFrame(datos_exportar)
+            csv_pac = df_export.to_csv(index=False).encode('utf-8-sig') # utf-8-sig para que Excel lea acentos
+            
             st.download_button(
-                label="📥 Exportar Info. Completa de Pacientes (CSV)",
+                label="📥 Exportar Base de Datos de Pacientes (Formato Especial)",
                 data=csv_pac,
-                file_name="pacientes_completo.csv",
+                file_name="base_pacientes.csv",
                 mime="text/csv",
             )
 
             st.markdown("---")
             st.markdown("<h4 style='color: #E67E22; font-size: 16px;'>🛠️ Gestión de Expediente</h4>", unsafe_allow_html=True)
             
-            if not df_pac.empty:
-                nombres_pac = {f"{p['nombre']} ({p['id_p']})": p for p in df_pac.to_dict('records')}
+            if not df_pac_visual.empty:
+                nombres_pac = {f"{p['nombre']} ({p['id_p']})": p for p in df_pac_visual.to_dict('records')}
                 pac_sel = st.selectbox("Seleccione un paciente para gestionar:", list(nombres_pac.keys()))
                 
                 datos_p = nombres_pac[pac_sel]
@@ -230,7 +291,7 @@ def render_administracion(db):
                             dat = h.to_dict()
                             st.markdown(f"<small><b>{dat['fecha']}</b> | <b>{dat['accion']}</b> por {dat['autor']}</small><br><small style='color:#666;'>{dat['detalles']}</small><hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
 
-                # --- 3. NUEVO: ZONA DE PELIGRO (ELIMINAR PACIENTE) ---
+                # --- 3. ZONA DE PELIGRO (ELIMINAR PACIENTE) ---
                 st.markdown("<br>", unsafe_allow_html=True)
                 with st.expander("⚠️ ELIMINAR EXPEDIENTE (Zona de Peligro)", expanded=False):
                     st.error(f"""
@@ -244,20 +305,17 @@ def render_administracion(db):
                     
                     c_del1, c_del2 = st.columns([2, 1])
                     with c_del1:
-                        # type="password" para que se oculten los caracteres al teclear
-                        clave_borrado = st.text_input("Ingresa la clave de autorización para eliminar:", type="password", key=f"clave_del_{id_paciente}")
+                        clave_borrado = st.text_input("Ingresa la clave de autorización para eliminar:", type="password", key=f"clave_del_pac_{id_paciente}")
                     
                     with c_del2:
                         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-                        if st.button("🗑️ Proceder a Eliminar", type="primary", use_container_width=True):
+                        if st.button("🗑️ Proceder a Eliminar", type="primary", use_container_width=True, key=f"btn_del_pac_{id_paciente}"):
                             if clave_borrado == "5years":
                                 with st.spinner("Borrando expediente de la base de datos..."):
-                                    # Ejecutar la eliminación en Firestore
                                     db.collection("pacientes").document(id_paciente).delete()
-                                
                                 st.success(f"✅ El expediente de {datos_p.get('nombre')} ha sido eliminado.")
                                 time.sleep(1.5)
-                                st.rerun() # Refresca para que el paciente desaparezca del Grid y del Selectbox
+                                st.rerun()
                             elif clave_borrado == "":
                                 st.warning("Ingresa la clave para habilitar el borrado.")
                             else:
