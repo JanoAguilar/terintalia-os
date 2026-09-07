@@ -35,7 +35,7 @@ def render_administracion(db):
         nombre_id = f"{d['nombre_completo']} ({d['especialista_id_interno']})"
         if area not in dict_esp_por_area:
             dict_esp_por_area[area] = []
-        dict_esp_por_area[area].append(nombre_id)
+            dict_esp_por_area[area].append(nombre_id)
 
     # ==========================================
     # PESTAÑA 1: ESPECIALISTAS
@@ -50,7 +50,18 @@ def render_administracion(db):
             st.warning("No hay especialistas registrados.")
         else:
             df_esp = pd.DataFrame(lista_esp)
+            
+            # 1. Mostrar vista resumida en el Grid
             st.dataframe(df_esp[["especialista_id_interno", "nombre_completo", "especialidad", "estatus"]], use_container_width=True, hide_index=True)
+            
+            # 2. Botón para exportar toda la información
+            csv_esp = df_esp.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Exportar Info. Completa de Especialistas (CSV)",
+                data=csv_esp,
+                file_name="especialistas_completo.csv",
+                mime="text/csv",
+            )
 
             st.markdown("---")
             st.markdown("<h4 style='color: #E67E22; font-size: 16px;'>🛠️ Modificar Especialista</h4>", unsafe_allow_html=True)
@@ -113,10 +124,22 @@ def render_administracion(db):
         else:
             df_pac = pd.DataFrame(lista_pac)
             busqueda = st.text_input("🔍 Buscar Paciente por Nombre o Folio").upper()
+            
+            # Filtramos el DataFrame si hay búsqueda
             if busqueda:
                 df_pac = df_pac[df_pac['nombre'].str.contains(busqueda) | df_pac['id_p'].str.contains(busqueda)]
             
+            # 1. Mostrar vista resumida en el Grid
             st.dataframe(df_pac[["id_p", "nombre", "esp", "med", "status"]], use_container_width=True, hide_index=True)
+            
+            # 2. Botón para exportar toda la información (respeta si hay un filtro de búsqueda aplicado)
+            csv_pac = df_pac.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Exportar Info. Completa de Pacientes (CSV)",
+                data=csv_pac,
+                file_name="pacientes_completo.csv",
+                mime="text/csv",
+            )
 
             st.markdown("---")
             st.markdown("<h4 style='color: #E67E22; font-size: 16px;'>🛠️ Gestión de Expediente</h4>", unsafe_allow_html=True)
