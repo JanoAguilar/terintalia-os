@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import time
 
 # --- FUNCIÓN AUXILIAR PARA GUARDAR EL HISTORIAL ---
 def registrar_cambio(db, coleccion, doc_id, accion, detalles, autor):
@@ -18,7 +19,7 @@ def render_administracion(db):
     st.write("")
 
     tab1, tab2 = st.tabs(["👩‍⚕️ Gestión de Especialistas", "👤 Gestión de Pacientes"])
-    admin_actual = st.session_state.nombre
+    admin_actual = st.session_state.get("nombre", "Administrador")
 
     # ==========================================
     # OBTENER DICCIONARIO DE ESPECIALISTAS ACTIVOS
@@ -37,7 +38,7 @@ def render_administracion(db):
         dict_esp_por_area[area].append(nombre_id)
 
     # ==========================================
-    # PESTAÑA 1: ESPECIALISTAS (Diseño Actualizado)
+    # PESTAÑA 1: ESPECIALISTAS
     # ==========================================
     with tab1:
         st.markdown("<h4 style='color: #164032; font-size: 16px;'>Directorio de Especialistas</h4>", unsafe_allow_html=True)
@@ -84,6 +85,7 @@ def render_administracion(db):
                                 })
                                 registrar_cambio(db, "especialistas", id_interno, "ACTUALIZACIÓN", " | ".join(cambios), admin_actual)
                                 st.success("Datos actualizados.")
+                                time.sleep(1)
                                 st.rerun()
                             else:
                                 st.info("No se detectaron cambios.")
@@ -98,7 +100,7 @@ def render_administracion(db):
                             st.markdown(f"<small><b>{dat['fecha']}</b> | <b>{dat['accion']}</b> por {dat['autor']}</small><br><small style='color:#666;'>{dat['detalles']}</small><hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
 
     # ==========================================
-    # PESTAÑA 2: PACIENTES (Diseño Minimalista y Full Edición)
+    # PESTAÑA 2: PACIENTES
     # ==========================================
     with tab2:
         st.markdown("<h4 style='color: #164032; font-size: 16px;'>Control General de Pacientes</h4>", unsafe_allow_html=True)
@@ -117,20 +119,19 @@ def render_administracion(db):
             st.dataframe(df_pac[["id_p", "nombre", "esp", "med", "status"]], use_container_width=True, hide_index=True)
 
             st.markdown("---")
-            st.markdown("<h4 style='color: #E67E22; font-size: 16px;'>🛠️ Edición Completa de Expediente</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='color: #E67E22; font-size: 16px;'>🛠️ Gestión de Expediente</h4>", unsafe_allow_html=True)
             
             if not df_pac.empty:
                 nombres_pac = {f"{p['nombre']} ({p['id_p']})": p for p in df_pac.to_dict('records')}
-                pac_sel = st.selectbox("Seleccione un paciente para editar:", list(nombres_pac.keys()))
+                pac_sel = st.selectbox("Seleccione un paciente para gestionar:", list(nombres_pac.keys()))
                 
                 datos_p = nombres_pac[pac_sel]
                 id_paciente = datos_p['id_p']
                 esp_paciente = datos_p.get('esp', '').upper()
                 
+                # --- 1. EDICIÓN DE INFORMACIÓN ---
                 with st.expander(f"✏️ Editar Información de {datos_p.get('nombre')}", expanded=False):
                     with st.form(f"form_edit_pac_{id_paciente}"):
-                        
-                        # BLOQUE 1: DATOS PERSONALES
                         st.markdown("<h5 style='color: #164032;'>👤 Datos Personales</h5>", unsafe_allow_html=True)
                         c1, c2 = st.columns(2)
                         n_nombre = c1.text_input("Nombre Completo", value=datos_p.get("nombre", "")).upper()
@@ -141,7 +142,6 @@ def render_administracion(db):
                         n_civil = c4.selectbox("Estado civil", ["Soltero(a)", "Casado(a)", "Divorciado(a)", "Viudo(a)", "Unión Libre"], index=["Soltero(a)", "Casado(a)", "Divorciado(a)", "Viudo(a)", "Unión Libre"].index(datos_p.get("estado_civil", "Soltero(a)")) if datos_p.get("estado_civil", "Soltero(a)") in ["Soltero(a)", "Casado(a)", "Divorciado(a)", "Viudo(a)", "Unión Libre"] else 0)
                         n_escolaridad = c5.text_input("Escolaridad", value=datos_p.get("escolaridad", "")).upper()
 
-                        # BLOQUE 2: CONTACTO
                         st.markdown("<hr style='margin: 10px 0;'><h5 style='color: #164032;'>📞 Contacto y Dirección</h5>", unsafe_allow_html=True)
                         c6, c7 = st.columns(2)
                         n_tel = c6.text_input("Teléfono Celular", value=datos_p.get("telefono", ""))
@@ -151,23 +151,19 @@ def render_administracion(db):
                         n_correo = c8.text_input("Correo Electrónico", value=datos_p.get("correo", "")).lower()
                         n_dir = c9.text_input("Domicilio Completo", value=datos_p.get("direccion", "")).upper()
 
-                        # BLOQUE 3: EMERGENCIA
                         st.markdown("<hr style='margin: 10px 0;'><h5 style='color: #164032;'>🚨 Emergencia</h5>", unsafe_allow_html=True)
                         c10, c11, c12 = st.columns(3)
                         n_em_nom = c10.text_input("Llamar a", value=datos_p.get("contacto_emergencia_nom", "")).upper()
                         n_em_par = c11.text_input("Parentesco", value=datos_p.get("contacto_emergencia_par", "")).upper()
                         n_em_tel = c12.text_input("Tel. Emergencia", value=datos_p.get("contacto_emergencia_tel", ""))
 
-                        # BLOQUE 4: ASIGNACIÓN Y ESTATUS
                         st.markdown("<hr style='margin: 10px 0;'><h5 style='color: #E67E22;'>🏥 Estatus y Reasignación</h5>", unsafe_allow_html=True)
                         c13, c14 = st.columns(2)
                         n_estatus = c13.selectbox("Estatus de Expediente", ["ACTIVO", "INACTIVO"], index=0 if datos_p.get('status') == "ACTIVO" else 1)
                         
-                        # --- LÓGICA DE REASIGNACIÓN INTELIGENTE (Misma Especialidad) ---
                         medicos_compatibles = dict_esp_por_area.get(esp_paciente, [])
                         med_actual = datos_p.get("med", "")
                         
-                        # Si el médico actual ya no está activo, lo agregamos a la lista visualmente para no perder la referencia
                         if med_actual and med_actual not in medicos_compatibles:
                             medicos_compatibles.insert(0, med_actual)
                             
@@ -178,8 +174,6 @@ def render_administracion(db):
 
                         st.write("")
                         if st.form_submit_button("💾 ACTUALIZAR EXPEDIENTE", type="primary", use_container_width=True):
-                            
-                            # Diccionario con lo nuevo vs lo viejo para rastrear cambios
                             nuevos_datos = {
                                 "nombre": n_nombre, "edad": n_edad, "sexo": n_sexo, "estado_civil": n_civil, "escolaridad": n_escolaridad,
                                 "telefono": n_tel, "tel_casa": n_tel_casa, "correo": n_correo, "direccion": n_dir,
@@ -198,10 +192,12 @@ def render_administracion(db):
                                 detalle_cambio_p = " | ".join(cambios_p)
                                 registrar_cambio(db, "pacientes", id_paciente, "ACTUALIZACIÓN DE EXPEDIENTE", detalle_cambio_p, admin_actual)
                                 st.success("Expediente actualizado exitosamente.")
+                                time.sleep(1)
                                 st.rerun()
                             else:
                                 st.info("No se modificó ninguna información.")
 
+                # --- 2. HISTORIAL DE CAMBIOS ---
                 with st.expander("📜 Ver Historial de Cambios del Paciente", expanded=False):
                     historial_pac = db.collection("pacientes").document(id_paciente).collection("historial_cambios").order_by("fecha", direction="DESCENDING").get()
                     if not historial_pac:
@@ -210,3 +206,36 @@ def render_administracion(db):
                         for h in historial_pac:
                             dat = h.to_dict()
                             st.markdown(f"<small><b>{dat['fecha']}</b> | <b>{dat['accion']}</b> por {dat['autor']}</small><br><small style='color:#666;'>{dat['detalles']}</small><hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
+
+                # --- 3. NUEVO: ZONA DE PELIGRO (ELIMINAR PACIENTE) ---
+                st.markdown("<br>", unsafe_allow_html=True)
+                with st.expander("⚠️ ELIMINAR EXPEDIENTE (Zona de Peligro)", expanded=False):
+                    st.error(f"""
+                    **🚨 ADVERTENCIA LEGAL NORMATIVA (NOM-004)**
+                    
+                    Estás a punto de eliminar definitivamente a **{datos_p.get('nombre')} ({id_paciente})**.
+                    Las normas de salud exigen conservar los expedientes clínicos por un **mínimo de 5 años** a partir de la fecha del último acto médico.
+                    
+                    Si procedes, se borrará su registro de la base de datos central. **Esta acción es irreversible.**
+                    """)
+                    
+                    c_del1, c_del2 = st.columns([2, 1])
+                    with c_del1:
+                        # type="password" para que se oculten los caracteres al teclear
+                        clave_borrado = st.text_input("Ingresa la clave de autorización para eliminar:", type="password", key=f"clave_del_{id_paciente}")
+                    
+                    with c_del2:
+                        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                        if st.button("🗑️ Proceder a Eliminar", type="primary", use_container_width=True):
+                            if clave_borrado == "5years":
+                                with st.spinner("Borrando expediente de la base de datos..."):
+                                    # Ejecutar la eliminación en Firestore
+                                    db.collection("pacientes").document(id_paciente).delete()
+                                
+                                st.success(f"✅ El expediente de {datos_p.get('nombre')} ha sido eliminado.")
+                                time.sleep(1.5)
+                                st.rerun() # Refresca para que el paciente desaparezca del Grid y del Selectbox
+                            elif clave_borrado == "":
+                                st.warning("Ingresa la clave para habilitar el borrado.")
+                            else:
+                                st.error("❌ Clave de autorización incorrecta.")
