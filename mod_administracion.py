@@ -36,7 +36,8 @@ def render_administracion(db):
     for doc in docs_esp_activos:
         d = doc.to_dict()
         area = d.get('especialidad', '').upper()
-        if area == "DIRECTOR": continue
+        if area == "DIRECTOR":
+            continue
         
         nombre_id = f"{d['nombre_completo']} ({d['especialista_id_interno']})"
         if area not in dict_esp_por_area:
@@ -131,15 +132,15 @@ def render_administracion(db):
                                 "nombre_completo": nuevo_nombre,
                                 "correo_corporativo": nuevo_correo,
                                 "telefono": nuevo_tel,
-                                "contacto": nuevo_tel, # Retrocompatibilidad
+                                "contacto": nuevo_tel,
                                 "estatus": nuevo_estatus,
                                 "profesion_base": nueva_profesion,
                                 "cedula_base": nueva_cedula,
-                                "cedula": nueva_cedula, # Retrocompatibilidad
+                                "cedula": nueva_cedula,
                                 "posgrado": nuevo_posgrado,
                                 "cedula_posgrado": nueva_ced_posgrado,
                                 "area_atencion": nueva_area,
-                                "especialidad": nueva_area, # Retrocompatibilidad
+                                "especialidad": nueva_area,
                                 "poblacion_atiende": nueva_poblacion
                             }
 
@@ -375,73 +376,7 @@ def render_administracion(db):
                     
                     with c_del2:
                         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-                        if st.button("🗑️ Proceder a Eliminar", type="primary", use_container_width=True, key=f"btn_del_pac_{id_paciente}"):import streamlit as st
-import pandas as pd
-from datetime import datetime
-import time
-
-# --- FUNCIÓN AUXILIAR PARA GUARDAR EL HISTORIAL ---
-def registrar_cambio(db, coleccion, doc_id, accion, detalles, autor):
-    fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    db.collection(coleccion).document(doc_id).collection("historial_cambios").add({
-        "fecha": fecha_actual,
-        "accion": accion,
-        "detalles": detalles,
-        "autor": autor
-    })
-
-def render_administracion(db):
-    st.markdown("<h2 style='color: #164032; font-weight: 600; font-size: 26px; margin-bottom: 0px;'>Panel de Administración</h2>", unsafe_allow_html=True)
-    st.caption("Gestión central, edición de perfiles, reasignaciones y rastro de auditoría.")
-    st.write("")
-
-    tab1, tab2 = st.tabs(["👩‍⚕️ Gestión de Especialistas", "👤 Gestión de Pacientes"])
-    admin_actual = st.session_state.get("nombre", "Administrador")
-
-    # ==========================================
-    # OBTENER DICCIONARIO DE ESPECIALISTAS ACTIVOS
-    # ==========================================
-    docs_esp_activos = db.collection("especialistas").where("estatus", "==", "ACTIVO").get()
-    dict_esp_por_area = {}
-    
-    for doc in docs_esp_activos:
-        d = doc.to_dict()
-        area = d.get('especialidad', '').upper()
-        if area == "DIRECTOR": continue
-        
-        nombre_id = f"{d['nombre_completo']} ({d['especialista_id_interno']})"
-        if area not in dict_esp_por_area:
-            dict_esp_por_area[area] = []
-        dict_esp_por_area[area].append(nombre_id)
-
-    # ==========================================
-    # PESTAÑA 1: ESPECIALISTAS
-    # ==========================================
-    with tab1:
-        st.markdown("<h4 style='color: #164032; font-size: 16px;'>Directorio de Especialistas</h4>", unsafe_allow_html=True)
-        
-        docs_esp = db.collection("especialistas").get()
-        lista_esp = [d.to_dict() for d in docs_esp if d.to_dict().get('especialidad') != "DIRECTOR"]
-        
-        if not lista_esp:
-            st.warning("No hay especialistas registrados.")
-        else:
-            df_esp = pd.DataFrame(lista_esp)
-            st.dataframe(df_esp[["especialista_id_interno", "nombre_completo", "especialidad", "estatus"]], use_container_width=True, hide_index=True)
-            
-            # Exportar Especialistas
-            # Al exportar el DataFrame completo, las nuevas columnas (profesion_base, poblacion, etc.) se incluyen automáticamente
-            csv_esp = df_esp.to_csv(index=False).encode('utf-8-sig')
-            st.download_button(
-                label="📥 Exportar Info. Completa de Especialistas (CSV)",
-                data=csv_esp,
-                file_name="especialistas_completo.csv",
-                mime="text/csv",
-            )
-
-            st.markdown("---")
-            st.markdown("<h4 style='color: #E67E22; font-size: 16px;'>🛠️ Gestión de Especialista</h4>", unsafe_allow_html=True)
-
+                        if st.button("🗑️ Proceder a Eliminar", type="primary", use_container_width=True, key=f"btn_del_pac_{id_paciente}"):
                             if clave_borrado == "5years":
                                 with st.spinner("Borrando expediente de la base de datos..."):
                                     db.collection("pacientes").document(id_paciente).delete()
