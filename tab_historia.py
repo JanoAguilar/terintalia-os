@@ -112,13 +112,6 @@ ORDEN_CAMPOS = {
         ("nut_signos_fisicos", "Signos Físicos Generales"),
         ("nut_medicos", "Antecedentes Médicos y Quirúrgicos"),
         ("nut_meds", "Medicamentos, Suplementos, Sustancias"),
-        ("nut_fam_comp", "1. Composición Familiar Actual"),
-        ("nut_fam_origen", "2. Familia de Origen y Crianza"),
-        ("nut_fam_relacion", "3. Relación con Figuras Parentales"),
-        ("nut_fam_dinamica", "4. Dinámica Familiar y Relación con la Comida"),
-        ("nut_fam_socioemocional", "5. Historia Socioemocional"),
-        ("nut_fam_adversidades", "6. Pérdidas y Experiencias Adversas"),
-        ("nut_fam_ant", "7. Antecedentes Familiares de Salud (Diabetes, etc.)"),
         ("nut_agua_litros", "Consumo de Agua (Litros/día)"),
         ("nut_agua_rango", "Rango de Consumo de Agua"),
         ("nut_aceite", "Tipo de Aceite Utilizado"),
@@ -558,17 +551,8 @@ def render(db, paciente, id_pac):
                     with st.expander("III. Antecedentes Médicos Personales"):
                         payload["nut_medicos"] = st.text_area("Antecedentes Médicos y Quirúrgicos:", value=datos_hc.get("nut_medicos", ""))
                         payload["nut_meds"] = st.text_area("Medicamentos, Suplementos, Tabaco/Drogas:", value=datos_hc.get("nut_meds", ""))
-                        
-                    with st.expander("IV. Historia familiar, evolutiva y relacional"):
-                        payload["nut_fam_comp"] = st.text_area("1. Composición familiar actual (¿Con quién vive?):", value=datos_hc.get("nut_fam_comp", ""))
-                        payload["nut_fam_origen"] = st.text_area("2. Familia de origen y contexto de crianza:", value=datos_hc.get("nut_fam_origen", ""))
-                        payload["nut_fam_relacion"] = st.text_area("3. Relación con figuras parentales o cuidadores:", value=datos_hc.get("nut_fam_relacion", ""))
-                        payload["nut_fam_dinamica"] = st.text_area("4. Dinámica familiar y relación con la comida en la infancia:", value=datos_hc.get("nut_fam_dinamica", ""))
-                        payload["nut_fam_socioemocional"] = st.text_area("5. Historia socioemocional y adaptación:", value=datos_hc.get("nut_fam_socioemocional", ""))
-                        payload["nut_fam_adversidades"] = st.text_area("6. Pérdidas, separaciones y experiencias adversas:", value=datos_hc.get("nut_fam_adversidades", ""))
-                        payload["nut_fam_ant"] = st.text_area("7. Antecedentes familiares de salud (Obesidad, Diabetes, TCA, Adicciones, etc.):", value=datos_hc.get("nut_fam_ant", ""))
 
-                    with st.expander("V. Hábitos Alimenticios y Recordatorio 24h"):
+                    with st.expander("IV. Hábitos Alimenticios y Recordatorio 24h"):
                         c_agua1, c_agua2 = st.columns(2)
                         payload["nut_agua_litros"] = c_agua1.text_input("Cantidad aproximada de agua (litros/día):", value=datos_hc.get("nut_agua_litros", ""))
                         opciones_agua = ["", "Menos de 1 litro", "1–1.5 litros", "1.5–2 litros", "Más de 2 litros", "No sabe"]
@@ -599,12 +583,12 @@ def render(db, paciente, id_pac):
                         payload["nut_frecuencia"] = c_hor2.text_area("Frecuencia (Frutas, verduras, cereales, etc.):", value=datos_hc.get("nut_frecuencia", ""))
                         payload["nut_rec24"] = st.text_area("Recordatorio de 24 horas:", value=datos_hc.get("nut_rec24", ""))
 
-                    with st.expander("VI. Actividad, VII. Emocional y VIII. Sueño"):
+                    with st.expander("V. Actividad, VI. Emocional y VII. Sueño"):
                         payload["nut_actividad"] = st.text_area("Actividad física (Tipo, frecuencia, intensidad):", value=datos_hc.get("nut_actividad", ""))
                         payload["nut_emocional"] = st.text_area("Estado emocional (Comer por estrés, atracones, culpa):", value=datos_hc.get("nut_emocional", ""))
                         payload["nut_sueno"] = st.text_area("Calidad del sueño y horas:", value=datos_hc.get("nut_sueno", ""))
 
-                    with st.expander("IX. Antropometría, X. Objetivos y XI. Plan"):
+                    with st.expander("VIII. Antropometría, IX. Objetivos y X. Plan"):
                         c1, c2, c3, c4 = st.columns(4)
                         payload["nut_peso"] = c1.text_area("Peso (kg)", value=datos_hc.get("nut_peso", ""))
                         payload["nut_talla"] = c2.text_area("Estatura (cm)", value=datos_hc.get("nut_talla", ""))
