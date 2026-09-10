@@ -173,24 +173,74 @@ def generar_pdf_historia(paciente, datos_hc, tipo_plantilla):
     styles = getSampleStyleSheet()
     
     # Estilos de texto
-    title_style = ParagraphStyle(name="TitleStyle", parent=styles['Heading1'], alignment=TA_CENTER, fontSize=16, spaceAfter=20)
-    heading_style = ParagraphStyle(name="HeadingStyle", parent=styles['Heading2'], fontSize=12, spaceAfter=5, textColor="#164032")
-    normal_style = ParagraphStyle(name="NormalStyle", parent=styles['Normal'], fontSize=10, spaceAfter=15)
+    title_style = ParagraphStyle(name="TitleStyle", parent=styles['Heading1'], alignment=TA_CENTER, fontSize=16, spaceAfter=20, textColor="#164032")
+    heading_style = ParagraphStyle(name="HeadingStyle", parent=styles['Heading2'], fontSize=12, spaceAfter=8, textColor="#164032")
+    sub_heading = ParagraphStyle(name="SubHeading", parent=styles['Heading3'], fontSize=10, spaceAfter=5, textColor="#2980B9")
+    emergencia_style = ParagraphStyle(name="EmergenciaStyle", parent=styles['Heading3'], fontSize=10, spaceAfter=5, textColor="#D35400")
+    normal_style = ParagraphStyle(name="NormalStyle", parent=styles['Normal'], fontSize=10, spaceAfter=15, leading=14)
     
     elements = []
     
-    # 1. Cabecera y Título
+    # --- 1. CABECERA Y TÍTULO ---
     elements.append(Paragraph("HISTORIA CLÍNICA OFICIAL - TERINTALIA OS", title_style))
     
-    # 2. Datos Generales
-    nombre_pac = paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))
-    elements.append(Paragraph(f"<b>Paciente:</b> {nombre_pac}", styles['Normal']))
-    elements.append(Paragraph(f"<b>Fecha de Firma y Sello:</b> {datos_hc.get('fecha_firma', 'N/A')}", styles['Normal']))
-    elements.append(Paragraph(f"<b>Especialista Firmante:</b> {datos_hc.get('firmado_por', 'N/A')}", styles['Normal']))
-    elements.append(Paragraph(f"<b>Formato Clínico:</b> {tipo_plantilla}", styles['Normal']))
-    elements.append(Spacer(1, 20))
+    # --- 2. FICHA DE IDENTIFICACIÓN ---
+    elements.append(Paragraph("I. FICHA DE IDENTIFICACIÓN Y DATOS GENERALES", heading_style))
     
-    # 3. Iteración ordenada de la historia clínica
+    nombre_pac = paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))
+    folio = paciente.get('id_p', 'N/A')
+    
+    # Datos de Validación Legal
+    info_expediente = f"""
+    <b>Número de Expediente (Folio):</b> {folio}<br/>
+    <b>Paciente:</b> {nombre_pac}<br/>
+    <b>Fecha de Firma y Sello:</b> {datos_hc.get('fecha_firma', 'N/A')}<br/>
+    <b>Especialista Firmante:</b> {datos_hc.get('firmado_por', 'N/A')}<br/>
+    <b>Formato Clínico Aplicado:</b> {tipo_plantilla}
+    """
+    elements.append(Paragraph(info_expediente, normal_style))
+    
+    # Datos Personales
+    elements.append(Paragraph("Datos Personales", sub_heading))
+    datos_personales = f"""
+    <b>Edad:</b> {paciente.get('edad', 'N/A')} años | <b>Sexo:</b> {paciente.get('sexo', paciente.get('genero', 'N/A'))} | <b>F. Nacimiento:</b> {paciente.get('fecha_nacimiento', paciente.get('fecha_nac', 'N/A'))}<br/>
+    <b>Estado Civil:</b> {paciente.get('estado_civil', 'N/A')} | <b>Escolaridad:</b> {paciente.get('escolaridad', paciente.get('grado_estudios', 'N/A'))}<br/>
+    <b>Ocupación:</b> {paciente.get('ocupacion', paciente.get('profesion', 'N/A'))} | <b>Religión:</b> {paciente.get('religion', paciente.get('creencia', 'N/A'))}
+    """
+    elements.append(Paragraph(datos_personales, normal_style))
+    
+    # Contacto y Dirección
+    elements.append(Paragraph("Contacto y Dirección", sub_heading))
+    contacto = f"""
+    <b>Tel. Celular:</b> {paciente.get('telefono', paciente.get('celular', 'N/A'))} | <b>Tel. Casa:</b> {paciente.get('tel_casa', paciente.get('telefono_fijo', paciente.get('tel_fijo', 'N/A')))}<br/>
+    <b>Correo:</b> {paciente.get('correo', paciente.get('email', 'N/A'))}<br/>
+    <b>Domicilio:</b> {paciente.get('domicilio', paciente.get('direccion', 'N/A'))}
+    """
+    elements.append(Paragraph(contacto, normal_style))
+    
+    # Atención Clínica
+    elements.append(Paragraph("Datos de Atención Clínica", sub_heading))
+    atencion = f"""
+    <b>Especialista Asignado:</b> {paciente.get('esp', paciente.get('especialista_asignado', 'N/A'))}<br/>
+    <b>Tipo de Terapia:</b> {paciente.get('tipo_terapia', paciente.get('servicio', 'N/A'))} | <b>Modalidad:</b> {paciente.get('modalidad', 'N/A')}
+    """
+    elements.append(Paragraph(atencion, normal_style))
+    
+    # Emergencia
+    elements.append(Paragraph("Contacto de Emergencia", emergencia_style))
+    emergencia = f"""
+    <b>Llamar a:</b> {paciente.get('contacto_emergencia_nom', paciente.get('contacto_emergencia', paciente.get('nombre_emergencia', 'N/A')))}<br/>
+    <b>Parentesco:</b> {paciente.get('contacto_emergencia_par', paciente.get('parentesco_emergencia', paciente.get('parentesco', 'N/A')))} | <b>Teléfono:</b> {paciente.get('contacto_emergencia_tel', paciente.get('tel_emergencia', paciente.get('telefono_emergencia', 'N/A')))}
+    """
+    elements.append(Paragraph(emergencia, normal_style))
+    
+    elements.append(Spacer(1, 15))
+    
+    # --- 3. REGISTRO CLÍNICO ---
+    elements.append(Paragraph("II. REGISTRO CLÍNICO DE EVALUACIÓN", heading_style))
+    elements.append(Spacer(1, 5))
+    
+    # Iteración ordenada basada en el mapeo maestro
     for clave, titulo in ORDEN_CAMPOS.get(tipo_plantilla, []):
         valor = datos_hc.get(clave, "N/A")
         
@@ -200,10 +250,10 @@ def generar_pdf_historia(paciente, datos_hc, tipo_plantilla):
             
         # Si el campo tiene información real, lo agregamos al PDF
         if str(valor).strip() and str(valor).strip() != "N/A":
-            # Convertimos los saltos de línea normales a etiquetas <br/> para ReportLab
+            # Convertimos los saltos de línea normales a etiquetas <br /> para ReportLab
             valor_limpio = str(valor).replace('\n', '<br />')
             
-            elements.append(Paragraph(titulo, heading_style))
+            elements.append(Paragraph(titulo, sub_heading))
             elements.append(Paragraph(valor_limpio, normal_style))
             
     doc.build(elements)
