@@ -53,7 +53,8 @@ def render_administracion(db):
             st.dataframe(df_esp[["especialista_id_interno", "nombre_completo", "especialidad", "estatus"]], use_container_width=True, hide_index=True)
             
             # Exportar Especialistas
-            csv_esp = df_esp.to_csv(index=False).encode('utf-8')
+            # Al exportar el DataFrame completo, las nuevas columnas (profesion_base, poblacion, etc.) se incluyen automáticamente
+            csv_esp = df_esp.to_csv(index=False).encode('utf-8-sig')
             st.download_button(
                 label="📥 Exportar Info. Completa de Especialistas (CSV)",
                 data=csv_esp,
@@ -76,29 +77,87 @@ def render_administracion(db):
                 col_i.write(f"**Especialista:** {esp_seleccionado}")
                 col_e.write(f"**Estatus:** `{estatus_actual}`")
 
-                # --- 1. EDICIÓN ESPECIALISTA ---
-                with st.expander("✏️ Editar Información y Estatus", expanded=False):
+                # --- 1. EDICIÓN ESPECIALISTA (AHORA CON TODOS LOS CAMPOS) ---
+                with st.expander("✏️ Editar Información Completa y Estatus", expanded=False):
                     with st.form(f"form_edit_esp_{id_interno}"):
-                        c1, c2 = st.columns(2)
-                        nuevo_tel = c1.text_input("Teléfono", value=datos_esp.get("telefono", ""))
-                        nuevo_estatus = c2.selectbox("Estatus en sistema", ["ACTIVO", "INACTIVO"], index=0 if estatus_actual == "ACTIVO" else 1)
+                        st.markdown("<h5 style='color: #164032;'>👤 Datos Personales y Contacto</h5>", unsafe_allow_html=True)
+                        c_n1, c_n2 = st.columns(2)
+                        nuevo_nombre = c_n1.text_input("Nombre Completo", value=datos_esp.get("nombre_completo", "")).upper()
+                        nuevo_correo = c_n2.text_input("Correo Institucional", value=datos_esp.get("correo_corporativo", "")).lower()
+
+                        c_t1, c_t2 = st.columns(2)
+                        nuevo_tel = c_t1.text_input("Teléfono celular", value=datos_esp.get("telefono", datos_esp.get("contacto", "")))
+                        nuevo_estatus = c_t2.selectbox("Estatus en sistema", ["ACTIVO", "INACTIVO"], index=0 if estatus_actual == "ACTIVO" else 1)
+
+                        st.markdown("<hr style='margin: 10px 0;'><h5 style='color: #2980B9;'>🎓 Formación Académica</h5>", unsafe_allow_html=True)
+                        c_f1, c_f2 = st.columns(2)
+                        nueva_profesion = c_f1.text_input("Profesión base", value=datos_esp.get("profesion_base", "")).upper()
+                        nueva_cedula = c_f2.text_input("Cédula profesional base", value=datos_esp.get("cedula_base", datos_esp.get("cedula", ""))).upper()
+
+                        c_f3, c_f4 = st.columns(2)
+                        nuevo_posgrado = c_f3.text_input("Especialidad / posgrado (Opcional)", value=datos_esp.get("posgrado", "")).upper()
+                        nueva_ced_posgrado = c_f4.text_input("Cédula de posgrado (Opcional)", value=datos_esp.get("cedula_posgrado", "")).upper()
+
+                        st.markdown("<hr style='margin: 10px 0;'><h5 style='color: #E67E22;'>🏥 Perfil Clínico</h5>", unsafe_allow_html=True)
+                        c_p1, c_p2 = st.columns(2)
                         
-                        if st.form_submit_button("💾 Guardar Cambios", type="primary", use_container_width=True):
-                            cambios = []
-                            if nuevo_tel != datos_esp.get("telefono", ""): cambios.append(f"Teléfono: {nuevo_tel}")
-                            if nuevo_estatus != estatus_actual: cambios.append(f"Estatus: {nuevo_estatus}")
+                        area_actual = datos_esp.get("area_atencion", datos_esp.get("especialidad", "")).capitalize()
+                        nueva_area = c_p1.text_input("Área de atención", value=area_actual).upper()
+
+                        poblacion_actual = datos_esp.get("poblacion_atiende", [])
+                        if isinstance(poblacion_actual, str):
+                            poblacion_actual = [poblacion_actual] if poblacion_actual else []
+                        
+                        opciones_poblacion = ["Niños", "Adolescentes", "Adultos", "Parejas", "Familias", "Adultos Mayores"]
+                        for p in poblacion_actual:
+                            if p not in opciones_poblacion:
+                                opciones_poblacion.append(p)
+                                
+                        nueva_poblacion = c_p2.multiselect("Población que atiende", opciones_poblacion, default=poblacion_actual)
+                        
+                        st.write("")
+                        if st.form_submit_button("💾 Guardar Cambios del Especialista", type="primary", use_container_width=True):
                             
+                            nuevos_datos_esp = {
+                                "nombre_completo": nuevo_nombre,
+                                "correo_corporativo": nuevo_correo,
+                                "telefono": nuevo_tel,
+                                "contacto": nuevo_tel, # Retrocompatibilidad
+                                "estatus": nuevo_estatus,
+                                "profesion_base": nueva_profesion,
+                                "cedula_base": nueva_cedula,
+                                "cedula": nueva_cedula, # Retrocompatibilidad
+                                "posgrado": nuevo_posgrado,
+                                "cedula_posgrado": nueva_ced_posgrado,
+                                "area_atencion": nueva_area,
+                                "especialidad": nueva_area, # Retrocompatibilidad
+                                "poblacion_atiende": nueva_poblacion
+                            }
+
+                            cambios = []
+                            for clave, valor_nuevo in nuevos_datos_esp.items():
+                                # Omitimos las llaves duplicadas por retrocompatibilidad para no ensuciar el historial
+                                if clave in ["contacto", "cedula", "especialidad"]: 
+                                    continue
+                                
+                                valor_viejo = datos_esp.get(clave, [] if isinstance(valor_nuevo, list) else "")
+                                
+                                if isinstance(valor_nuevo, list):
+                                    viejo_list = valor_viejo if isinstance(valor_viejo, list) else []
+                                    if sorted(valor_nuevo) != sorted(viejo_list):
+                                        cambios.append(f"{clave.replace('_', ' ').capitalize()}: {viejo_list} ➡️ {valor_nuevo}")
+                                else:
+                                    if str(valor_nuevo) != str(valor_viejo):
+                                        cambios.append(f"{clave.replace('_', ' ').capitalize()}: {valor_viejo} ➡️ {valor_nuevo}")
+
                             if cambios:
-                                db.collection("especialistas").document(id_interno).update({
-                                    "telefono": nuevo_tel,
-                                    "estatus": nuevo_estatus
-                                })
+                                db.collection("especialistas").document(id_interno).update(nuevos_datos_esp)
                                 registrar_cambio(db, "especialistas", id_interno, "ACTUALIZACIÓN", " | ".join(cambios), admin_actual)
-                                st.success("Datos actualizados.")
+                                st.success("Perfil del especialista actualizado exitosamente.")
                                 time.sleep(1)
                                 st.rerun()
                             else:
-                                st.info("No se detectaron cambios.")
+                                st.info("No se modificó ninguna información.")
 
                 with st.expander("📜 Ver Historial de Cambios", expanded=False):
                     historial_esp = db.collection("especialistas").document(id_interno).collection("historial_cambios").order_by("fecha", direction="DESCENDING").get()
@@ -112,7 +171,6 @@ def render_administracion(db):
                 # --- 2. ZONA DE PELIGRO (ELIMINAR ESPECIALISTA) ---
                 st.markdown("<br>", unsafe_allow_html=True)
                 with st.expander("⚠️ ELIMINAR ESPECIALISTA (Zona de Peligro)", expanded=False):
-                    # Consultar si el especialista tiene pacientes activos asignados
                     docs_pacientes = db.collection("pacientes").where("med", "==", esp_seleccionado).get()
                     cantidad_pacientes = len(docs_pacientes)
 
@@ -163,11 +221,9 @@ def render_administracion(db):
             # --- LÓGICA DE EXPORTACIÓN CON ESTRUCTURA EXACTA ---
             datos_exportar = []
             for p in lista_pac:
-                # Si aplicaron búsqueda, exportamos solo los filtrados, si no, todos.
                 if busqueda and (busqueda not in p.get('nombre', '').upper() and busqueda not in p.get('id_p', '').upper()):
                     continue
                 
-                # Mapeo exacto solicitado por el usuario
                 fila_export = {
                     "NUMERO DE EXPEDIENTE": p.get("id_p", ""),
                     "ESPECIALIDAD": p.get("esp", ""),
@@ -193,7 +249,7 @@ def render_administracion(db):
                 datos_exportar.append(fila_export)
 
             df_export = pd.DataFrame(datos_exportar)
-            csv_pac = df_export.to_csv(index=False).encode('utf-8-sig') # utf-8-sig para que Excel lea acentos
+            csv_pac = df_export.to_csv(index=False).encode('utf-8-sig')
             
             st.download_button(
                 label="📥 Exportar Base de Datos de Pacientes (Formato Especial)",
