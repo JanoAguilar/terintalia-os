@@ -1,5 +1,10 @@
 import streamlit as st
 from datetime import datetime
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
 
 # ==========================================
 # MAPEO MAESTRO PARA ORDEN Y NOMBRES DE CAMPOS
@@ -161,6 +166,51 @@ ORDEN_CAMPOS = {
     ]
 }
 
+def generar_pdf_historia(paciente, datos_hc, tipo_plantilla):
+    """Genera un archivo PDF estructurado en memoria usando ReportLab"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    styles = getSampleStyleSheet()
+    
+    # Estilos de texto
+    title_style = ParagraphStyle(name="TitleStyle", parent=styles['Heading1'], alignment=TA_CENTER, fontSize=16, spaceAfter=20)
+    heading_style = ParagraphStyle(name="HeadingStyle", parent=styles['Heading2'], fontSize=12, spaceAfter=5, textColor="#164032")
+    normal_style = ParagraphStyle(name="NormalStyle", parent=styles['Normal'], fontSize=10, spaceAfter=15)
+    
+    elements = []
+    
+    # 1. Cabecera y Título
+    elements.append(Paragraph("HISTORIA CLÍNICA OFICIAL - TERINTALIA OS", title_style))
+    
+    # 2. Datos Generales
+    nombre_pac = paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))
+    elements.append(Paragraph(f"<b>Paciente:</b> {nombre_pac}", styles['Normal']))
+    elements.append(Paragraph(f"<b>Fecha de Firma y Sello:</b> {datos_hc.get('fecha_firma', 'N/A')}", styles['Normal']))
+    elements.append(Paragraph(f"<b>Especialista Firmante:</b> {datos_hc.get('firmado_por', 'N/A')}", styles['Normal']))
+    elements.append(Paragraph(f"<b>Formato Clínico:</b> {tipo_plantilla}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # 3. Iteración ordenada de la historia clínica
+    for clave, titulo in ORDEN_CAMPOS.get(tipo_plantilla, []):
+        valor = datos_hc.get(clave, "N/A")
+        
+        # Procesar listas (ej. selección múltiple)
+        if isinstance(valor, list):
+            valor = ", ".join(valor) if valor else "Ninguno"
+            
+        # Si el campo tiene información real, lo agregamos al PDF
+        if str(valor).strip() and str(valor).strip() != "N/A":
+            # Convertimos los saltos de línea normales a etiquetas <br/> para ReportLab
+            valor_limpio = str(valor).replace('\n', '<br />')
+            
+            elements.append(Paragraph(titulo, heading_style))
+            elements.append(Paragraph(valor_limpio, normal_style))
+            
+    doc.build(elements)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+
 def render(db, paciente, id_pac):
     if 'conf_borrador' not in st.session_state: st.session_state.conf_borrador = False
     if 'conf_sello' not in st.session_state: st.session_state.conf_sello = False
@@ -190,45 +240,27 @@ def render(db, paciente, id_pac):
     else:
         tipo_plantilla = "PSICOLOGÍA ADULTOS"
 
-    # ==========================================
-    # LÓGICA DE EXPORTACIÓN (TXT FORMATEADO)
-    # ==========================================
-    texto_exportacion = ""
-    if bloqueado:
-        texto_exportacion += f"=== HISTORIA CLÍNICA OFICIAL - TERINTALIA OS ===\n"
-        texto_exportacion += f"Paciente: {paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))}\n"
-        texto_exportacion += f"Fecha de Firma: {datos_hc.get('fecha_firma', 'N/A')}\n"
-        texto_exportacion += f"Especialista Firmante: {datos_hc.get('firmado_por', 'N/A')}\n"
-        texto_exportacion += f"Formato Aplicado: {tipo_plantilla}\n"
-        texto_exportacion += "="*50 + "\n\n"
-        
-        # Leemos del Mapeo Maestro para el orden
-        for clave, titulo in ORDEN_CAMPOS.get(tipo_plantilla, []):
-            valor = datos_hc.get(clave, "N/A")
-            if isinstance(valor, list):
-                valor = ", ".join(valor) if valor else "Ninguno"
-            if str(valor).strip() and str(valor).strip() != "N/A":
-                texto_exportacion += f"{titulo}:\n{valor}\n\n"
-
     # =========================================================
-    # APARTADO I: FICHA DE IDENTIFICACIÓN Y BOTÓN EXPORTAR
+    # APARTADO I: FICHA DE IDENTIFICACIÓN Y BOTÓN PDF
     # =========================================================
     c_tit, c_pdf = st.columns([3, 1])
     with c_tit:
         st.markdown("<h4 style='color: #164032; margin-top: 0px;'>📋 I. Ficha de Identificación y Datos Generales</h4>", unsafe_allow_html=True)
     with c_pdf:
         if bloqueado:
-            # Botón REAL de descarga cuando está sellado
+            # Si está sellado, generamos el PDF y activamos el botón de descarga
+            pdf_data = generar_pdf_historia(paciente, datos_hc, tipo_plantilla)
             st.download_button(
-                label="📥 Descargar Documento",
-                data=texto_exportacion.encode('utf-8-sig'),
-                file_name=f"Historia_Clinica_{paciente.get('nombre', 'Paciente')}.txt",
-                mime="text/plain",
-                use_container_width=True
+                label="📥 Exportar a PDF",
+                data=pdf_data,
+                file_name=f"Historia_Clinica_{paciente.get('nombre', 'Paciente')}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary"
             )
         else:
-            # Botón inactivo visualmente si aún es borrador
-            st.button("🔒 Requiere Sello para Descargar", disabled=True, use_container_width=True)
+            # Si es borrador, el botón está bloqueado para proteger la legalidad
+            st.button("🔒 Requiere Sello para Exportar", disabled=True, use_container_width=True)
 
     with st.container(border=True):
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>👤 Datos Personales</p>", unsafe_allow_html=True)
