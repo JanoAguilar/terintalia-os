@@ -460,7 +460,7 @@ def render(db, id_pac, paciente=None):
     if not notas_selladas:
         st.info("No hay notas previas registradas en este expediente.")
     else:
-        for n in notas_selladas:
+        for idx, n in enumerate(notas_selladas):
             tipo = n.get("tipo_nota", "Nota Clínica")
             sesion = n.get("sesion_num", "S/N")
             fecha = n.get("fecha_sesion_str", n.get("fecha_sistema", "")[:10])
@@ -471,7 +471,15 @@ def render(db, id_pac, paciente=None):
                 c_head1.caption(f"Sellada en sistema el: {n.get('fecha_sistema', '')}")
                 
                 pdf_individual = generar_pdf_individual(paciente, n)
-                c_head2.download_button("📥 PDF de esta sesión", data=pdf_individual, file_name=f"{sesion}_{paciente.get('nombre', 'Paciente')}.pdf", mime="application/pdf", use_container_width=True, key=f"dl_{n.get('fecha_sistema','')}")
+                # LLAVE ÚNICA PARA EVITAR EL ERROR DE STREAMLIT DUPLICATE ELEMENT KEY
+                c_head2.download_button(
+                    "📥 PDF de esta sesión", 
+                    data=pdf_individual, 
+                    file_name=f"{sesion}_{paciente.get('nombre', 'Paciente')}.pdf", 
+                    mime="application/pdf", 
+                    use_container_width=True, 
+                    key=f"dl_nota_{idx}_{n.get('fecha_sistema','')}"
+                )
                 
                 campos = estructurar_contenido_nota(n, tipo)
                 for titulo, contenido in campos:
