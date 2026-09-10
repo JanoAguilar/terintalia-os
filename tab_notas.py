@@ -94,7 +94,7 @@ def compilar_nota_pdf(nota, elements, styles):
             elements.append(Paragraph(contenido_limpio, normal_style))
     
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph("_" * 80, styles['Normal'])) # Línea separadora
+    elements.append(Paragraph("_" * 80, styles['Normal'])) 
     elements.append(Spacer(1, 10))
 
 def generar_pdf_individual(paciente, nota):
@@ -119,7 +119,6 @@ def generar_pdf_todas(paciente, notas_selladas):
     
     crear_encabezado_pdf(paciente, elements, styles)
     
-    # Invertimos para que en el reporte aparezca cronológicamente (desde Evaluación Inicial hasta la última)
     notas_cronologicas = sorted(notas_selladas, key=lambda x: x.get("fecha_sistema", ""))
     
     for nota in notas_cronologicas:
@@ -169,7 +168,7 @@ def render(db, id_pac, paciente=None):
             if n_data.get("estado") == "SELLADA":
                 notas_selladas.append(n_data)
 
-    # --- LÓGICA DE SECUENCIA Y ANTI-DUPLICADOS ---
+    # --- LÓGICA DE SECUENCIA Y ANTI-DUPLICADOS (EVALUACIÓN INICIAL = SESIÓN 1) ---
     sesiones_usadas = [n.get("sesion_num", "").strip() for n in notas_selladas]
     max_sesion = 0
     tiene_evaluacion = False
@@ -178,6 +177,8 @@ def render(db, id_pac, paciente=None):
     for val in sesiones_usadas:
         if val == "Evaluación Inicial":
             tiene_evaluacion = True
+            if max_sesion < 1:
+                max_sesion = 1  # La evaluación cuenta como la sesión 1
         elif val == "Sesión de Cierre":
             tiene_cierre = True
         elif val.startswith("Sesión "):
@@ -190,12 +191,10 @@ def render(db, id_pac, paciente=None):
 
     lista_sesiones = []
     
-    # 1. Obligar a Evaluación Inicial si no existe
-    if not tiene_evaluacion:
+    if not tiene_evaluacion and max_sesion == 0:
         lista_sesiones.append("Evaluación Inicial")
         sesion_sugerida = "Evaluación Inicial"
     else:
-        # 2. Si ya hay evaluación, sugerir la siguiente numérica
         sig_sesion_num = f"Sesión {max_sesion + 1}"
         lista_sesiones.append(sig_sesion_num)
         sesion_sugerida = sig_sesion_num
@@ -239,7 +238,6 @@ def render(db, id_pac, paciente=None):
                 
                 valor_guardado = datos_borrador.get("sesion_num", sesion_sugerida)
                 
-                # Manejo del selectbox reactivo
                 sesion_sel = c_ses.selectbox("Número o Tipo de Sesión:", lista_sesiones, index=lista_sesiones.index(valor_guardado) if valor_guardado in lista_sesiones else 0)
                 
                 if sesion_sel == "Otra (Especificar manualmente)":
@@ -252,7 +250,7 @@ def render(db, id_pac, paciente=None):
                 if len(notas_selladas) == 0:
                     c_ses.caption("*(No hay sesiones previas. Debe ser Evaluación Inicial)*")
                 elif max_sesion > 0:
-                    c_ses.caption(f"*(La última sesión numerada fue la Sesión {max_sesion})*")
+                    c_ses.caption(f"*(La Evaluación Inicial cuenta como Sesión 1. Última registrada: {max_sesion})*")
                 
                 fecha_str = datos_borrador.get("fecha_sesion_str", "")
                 try: 
