@@ -1,6 +1,166 @@
 import streamlit as st
 from datetime import datetime
 
+# ==========================================
+# MAPEO MAESTRO PARA ORDEN Y NOMBRES DE CAMPOS
+# ==========================================
+ORDEN_CAMPOS = {
+    "PSICOLOGÍA ADULTOS": [
+        ("ad_motivo_principal", "Motivo Principal de Consulta"),
+        ("ad_sintomas", "Síntomas Actuales"),
+        ("ad_expectativas", "Expectativas del Paciente"),
+        ("ad_inicio", "Inicio del Problema"),
+        ("ad_curso", "Curso o Evolución"),
+        ("ad_eventos", "Eventos Significativos Asociados"),
+        ("ad_factores", "Factores Desencadenantes/Agravantes"),
+        ("ad_impacto", "Impacto (Personal, Familiar, Social, Laboral)"),
+        ("ad_ant_medicos", "Antecedentes Médicos Relevantes"),
+        ("ad_ant_psiq", "Tratamiento Psiquiátrico Previo"),
+        ("ad_ant_psico", "Tratamientos Psicológicos Previos"),
+        ("ad_meds", "Medicaciones Actuales"),
+        ("ad_riesgo_suicida", "Riesgo Suicida o Autolesiones"),
+        ("ad_sustancias", "Consumo de Sustancias"),
+        ("ad_trauma", "Eventos Traumáticos"),
+        ("ad_fam_comp", "1. Composición Familiar Actual"),
+        ("ad_fam_origen", "2. Familia de Origen y Crianza"),
+        ("ad_fam_relacion", "3. Relación con Figuras Parentales"),
+        ("ad_fam_dinamica", "4. Dinámica Familiar durante el Desarrollo"),
+        ("ad_fam_socioemocional", "5. Historia Socioemocional y Adaptación"),
+        ("ad_fam_adversidades", "6. Pérdidas, Separaciones y Adversidades"),
+        ("ad_fam_ant", "7. Antecedentes Familiares de Salud Mental"),
+        ("ad_sueno", "Sueño"),
+        ("ad_alimentacion", "Alimentación/Apetito"),
+        ("ad_fisica", "Actividad Física"),
+        ("ad_social", "Área Social y Red de Apoyo"),
+        ("ad_emocional", "Autoestima y Regulación Emocional"),
+        ("ad_apariencia", "Apariencia y Actitud"),
+        ("ad_animo", "Estado de Ánimo y Afecto"),
+        ("ad_pensamiento", "Pensamiento, Percepción y Cognición"),
+        ("ad_juicio", "Juicio e Introspección"),
+        ("ad_clinimetria", "Clinimetría (Pruebas Aplicadas)"),
+        ("ad_predisponentes", "Factores Predisponentes"),
+        ("ad_precipitantes", "Factores Precipitantes"),
+        ("ad_mantenedores", "Factores Mantenedores"),
+        ("ad_protectores", "Factores Protectores"),
+        ("ad_hipotesis", "Hipótesis Clínica Inicial"),
+        ("ad_dx", "Diagnóstico(s) DSM-5/CIE-11 y Severidad"),
+        ("ad_plan", "Plan de Intervención y Objetivos"),
+        ("ad_psiquiatria", "Necesidad de Evaluación Psiquiátrica")
+    ],
+    "PSICOLOGÍA INFANTOJUVENIL": [
+        ("ij_padre", "Datos del Padre"),
+        ("ij_madre", "Datos de la Madre"),
+        ("ij_acompanante", "Persona que Acompaña"),
+        ("ij_motivo_padres", "Motivo Referido por Padres"),
+        ("ij_motivo_menor", "Motivo Referido por el Menor"),
+        ("ij_sintomas", "Conductas/Síntomas y Evolución"),
+        ("ij_impacto", "Impacto (Familiar, Escolar, Social)"),
+        ("ij_hist_inicio", "Inicio del Problema"),
+        ("ij_estrategias", "Estrategias Utilizadas Previamente"),
+        ("ij_embarazo", "Antecedentes de Embarazo"),
+        ("ij_parto", "Antecedentes de Parto"),
+        ("ij_desarrollo", "Desarrollo Temprano"),
+        ("ij_apego", "Apego Temprano / Cuidadores Principales"),
+        ("ij_medicos", "Enfermedades Médicas y Tratamientos"),
+        ("ij_psi", "Tratamientos Psicológicos/Psiquiátricos Previos"),
+        ("ij_riesgos", "Riesgos (Autolesiones/Trauma/Sustancias)"),
+        ("ij_fam_comp", "1. Composición Familiar Actual"),
+        ("ij_fam_origen", "2. Familia de Origen y Crianza"),
+        ("ij_fam_relacion", "3. Relación con Figuras Parentales"),
+        ("ij_fam_dinamica", "4. Dinámica Familiar durante el Desarrollo"),
+        ("ij_fam_socioemocional", "5. Historia Socioemocional y Adaptación"),
+        ("ij_fam_adversidades", "6. Pérdidas, Separaciones y Adversidades"),
+        ("ij_fam_ant", "7. Antecedentes Familiares de Salud Mental"),
+        ("ij_sueno", "Sueño y Alimentación"),
+        ("ij_emocional", "Regulación Emocional y Conducta en Casa"),
+        ("ij_social", "Relaciones y Recreación"),
+        ("ij_esc_desempeno", "Desempeño Académico y Conducta en Aula"),
+        ("ij_esc_social", "Relación con Profesores y Compañeros"),
+        ("ij_mental", "Estado Mental General"),
+        ("ij_clinimetria", "Clinimetría (Pruebas Aplicadas)"),
+        ("ij_formulacion", "Formulación Clínica"),
+        ("ij_dx", "Diagnóstico DSM-5/CIE-11 y Riesgos"),
+        ("ij_plan", "Plan de Intervención y Trabajo con Padres")
+    ],
+    "TERAPIA DE PAREJA": [
+        ("p_tiempos", "Tiempo de Relación / Convivencia / Hijos"),
+        ("p_motivo_pareja", "Motivo Principal Referido por la Pareja"),
+        ("p_expectativas", "Expectativas del Proceso Terapéutico"),
+        ("p_historia", "Historia de la Relación"),
+        ("p_fortalezas", "Fortalezas de la Relación"),
+        ("p_conflictos", "Principales Conflictos y Temas Recurrentes"),
+        ("p_fam_comp", "1. Composición Familiar Actual"),
+        ("p_fam_origen", "2. Familias de Origen"),
+        ("p_fam_relacion", "3. Relación con Figuras Parentales"),
+        ("p_fam_dinamica", "4. Dinámicas Familiares de Origen (Patrones)"),
+        ("p_fam_socioemocional", "5. Historia Socioemocional de Cada Uno"),
+        ("p_fam_adversidades", "6. Pérdidas y Experiencias Adversas"),
+        ("p_fam_ant", "7. Antecedentes Familiares de Salud Mental"),
+        ("p_patrones", "Patrones de Interacción en el Conflicto"),
+        ("p_violencia", "Evaluación de Violencia y Seguridad"),
+        ("p_plan", "Plan de Intervención")
+    ],
+    "NUTRICIÓN": [
+        ("nut_motivo", "Motivo de Consulta"),
+        ("nut_sintomas_gi_lista", "Síntomas Gastrointestinales Presentes"),
+        ("nut_sintomas_gi_obs_opcional", "Observaciones Gastrointestinales"),
+        ("nut_signos_fisicos", "Signos Físicos Generales"),
+        ("nut_medicos", "Antecedentes Médicos y Quirúrgicos"),
+        ("nut_meds", "Medicamentos, Suplementos, Sustancias"),
+        ("nut_fam_comp", "1. Composición Familiar Actual"),
+        ("nut_fam_origen", "2. Familia de Origen y Crianza"),
+        ("nut_fam_relacion", "3. Relación con Figuras Parentales"),
+        ("nut_fam_dinamica", "4. Dinámica Familiar y Relación con la Comida"),
+        ("nut_fam_socioemocional", "5. Historia Socioemocional"),
+        ("nut_fam_adversidades", "6. Pérdidas y Experiencias Adversas"),
+        ("nut_fam_ant", "7. Antecedentes Familiares de Salud (Diabetes, etc.)"),
+        ("nut_agua_litros", "Consumo de Agua (Litros/día)"),
+        ("nut_agua_rango", "Rango de Consumo de Agua"),
+        ("nut_aceite", "Tipo de Aceite Utilizado"),
+        ("nut_aceite_otro_opcional", "Otro Aceite Específico"),
+        ("nut_sal", "Consumo de Sal Estimado"),
+        ("nut_sal_obs_opcional", "Observaciones sobre Consumo de Sal"),
+        ("nut_pref_si", "Alimentos Preferidos"),
+        ("nut_pref_no", "Alimentos Evitados / No Preferidos"),
+        ("nut_intolerancias", "Intolerancias Alimentarias"),
+        ("nut_alergias_alim", "Alergias Alimentarias Conocidas"),
+        ("nut_horarios", "Comidas al Día, Horarios y Lugares"),
+        ("nut_frecuencia", "Frecuencia de Consumo de Grupos de Alimentos"),
+        ("nut_rec24", "Recordatorio de 24 Horas"),
+        ("nut_actividad", "Actividad Física"),
+        ("nut_emocional", "Estado Emocional y Relación con Comida"),
+        ("nut_sueno", "Calidad de Sueño"),
+        ("nut_peso", "Peso (kg)"),
+        ("nut_talla", "Estatura (cm)"),
+        ("nut_imc", "IMC"),
+        ("nut_grasa", "% Grasa / Músculo"),
+        ("nut_cintura", "Circunferencias"),
+        ("nut_objetivos", "Objetivos del Paciente"),
+        ("nut_plan", "Plan Nutricional Inicial")
+    ],
+    "FISIOTERAPIA": [
+        ("f_motivo", "Problema Principal y Zona Afectada"),
+        ("f_evolucion", "Tiempo de Evolución"),
+        ("f_mecanismo", "Mecanismo de Lesión"),
+        ("f_tratamientos", "Tratamientos Previos y Estudios"),
+        ("f_ant_medicos", "Enfermedades, Cirugías y Lesiones Previas"),
+        ("f_dolor_eva", "Escala de Dolor (EVA)"),
+        ("f_dolor_tipo", "Tipo de Dolor"),
+        ("f_factores", "Factores Agravantes o Atenuantes"),
+        ("f_fam_comp", "1. Composición Familiar Actual"),
+        ("f_fam_origen", "2. Familia de Origen"),
+        ("f_fam_relacion", "3. Relación con Cuidadores"),
+        ("f_fam_dinamica", "4. Dinámica Familiar"),
+        ("f_fam_socioemocional", "5. Historia Socioemocional y Adaptación"),
+        ("f_fam_adversidades", "6. Experiencias Adversas"),
+        ("f_fam_ant", "7. Antecedentes Familiares Generales"),
+        ("f_exploracion", "Exploración Física y Rango de Movimiento"),
+        ("f_pruebas", "Pruebas Especiales y Limitaciones"),
+        ("f_dx", "Diagnóstico Fisioterapéutico"),
+        ("f_plan", "Plan de Intervención y Frecuencia")
+    ]
+}
+
 def render(db, paciente, id_pac):
     if 'conf_borrador' not in st.session_state: st.session_state.conf_borrador = False
     if 'conf_sello' not in st.session_state: st.session_state.conf_sello = False
@@ -12,14 +172,63 @@ def render(db, paciente, id_pac):
     datos_hc = doc_hc.to_dict() if doc_hc.exists else {}
     bloqueado = datos_hc.get("bloqueado", False)
 
+    # ==========================================
+    # RUTEO INTELIGENTE DE PLANTILLAS
+    # ==========================================
+    esp_upper = paciente.get("esp", "").upper()
+    terapia = paciente.get("tipo_terapia", "")
+    edad = int(paciente.get("edad", 0))
+
+    if "FISIO" in esp_upper:
+        tipo_plantilla = "FISIOTERAPIA"
+    elif "NUTRI" in esp_upper:
+        tipo_plantilla = "NUTRICIÓN"
+    elif terapia == "De Pareja":
+        tipo_plantilla = "TERAPIA DE PAREJA"
+    elif edad < 18:
+        tipo_plantilla = "PSICOLOGÍA INFANTOJUVENIL"
+    else:
+        tipo_plantilla = "PSICOLOGÍA ADULTOS"
+
+    # ==========================================
+    # LÓGICA DE EXPORTACIÓN (TXT FORMATEADO)
+    # ==========================================
+    texto_exportacion = ""
+    if bloqueado:
+        texto_exportacion += f"=== HISTORIA CLÍNICA OFICIAL - TERINTALIA OS ===\n"
+        texto_exportacion += f"Paciente: {paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))}\n"
+        texto_exportacion += f"Fecha de Firma: {datos_hc.get('fecha_firma', 'N/A')}\n"
+        texto_exportacion += f"Especialista Firmante: {datos_hc.get('firmado_por', 'N/A')}\n"
+        texto_exportacion += f"Formato Aplicado: {tipo_plantilla}\n"
+        texto_exportacion += "="*50 + "\n\n"
+        
+        # Leemos del Mapeo Maestro para el orden
+        for clave, titulo in ORDEN_CAMPOS.get(tipo_plantilla, []):
+            valor = datos_hc.get(clave, "N/A")
+            if isinstance(valor, list):
+                valor = ", ".join(valor) if valor else "Ninguno"
+            if str(valor).strip() and str(valor).strip() != "N/A":
+                texto_exportacion += f"{titulo}:\n{valor}\n\n"
+
     # =========================================================
-    # APARTADO I: FICHA DE IDENTIFICACIÓN (CON ALIAS ANTI-ERRORES)
+    # APARTADO I: FICHA DE IDENTIFICACIÓN Y BOTÓN EXPORTAR
     # =========================================================
     c_tit, c_pdf = st.columns([3, 1])
     with c_tit:
         st.markdown("<h4 style='color: #164032; margin-top: 0px;'>📋 I. Ficha de Identificación y Datos Generales</h4>", unsafe_allow_html=True)
     with c_pdf:
-        st.button("📥 Exportar a PDF", key="btn_pdf_hc", use_container_width=True)
+        if bloqueado:
+            # Botón REAL de descarga cuando está sellado
+            st.download_button(
+                label="📥 Descargar Documento",
+                data=texto_exportacion.encode('utf-8-sig'),
+                file_name=f"Historia_Clinica_{paciente.get('nombre', 'Paciente')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        else:
+            # Botón inactivo visualmente si aún es borrador
+            st.button("🔒 Requiere Sello para Descargar", disabled=True, use_container_width=True)
 
     with st.container(border=True):
         st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>👤 Datos Personales</p>", unsafe_allow_html=True)
@@ -63,24 +272,6 @@ def render(db, paciente, id_pac):
     st.write("")
 
     # ==========================================
-    # RUTEO INTELIGENTE DE PLANTILLAS
-    # ==========================================
-    esp_upper = paciente.get("esp", "").upper()
-    terapia = paciente.get("tipo_terapia", "")
-    edad = int(paciente.get("edad", 0))
-
-    if "FISIO" in esp_upper:
-        tipo_plantilla = "FISIOTERAPIA"
-    elif "NUTRI" in esp_upper:
-        tipo_plantilla = "NUTRICIÓN"
-    elif terapia == "De Pareja":
-        tipo_plantilla = "TERAPIA DE PAREJA"
-    elif edad < 18:
-        tipo_plantilla = "PSICOLOGÍA INFANTOJUVENIL"
-    else:
-        tipo_plantilla = "PSICOLOGÍA ADULTOS"
-
-    # ==========================================
     # VISTA DE LECTURA (CUANDO YA ESTÁ SELLADO)
     # ==========================================
     if bloqueado:
@@ -88,13 +279,20 @@ def render(db, paciente, id_pac):
         st.caption(f"Sellado por: {datos_hc.get('firmado_por')} el {datos_hc.get('fecha_firma')} | Formato: {tipo_plantilla}")
         
         with st.container(border=True):
-            st.markdown("<h5 style='color: #164032;'>Datos Registrados en el Expediente:</h5>", unsafe_allow_html=True)
-            for key, value in datos_hc.items():
-                if key not in ["bloqueado", "firmado_por", "fecha_firma"] and "opcional" not in key.lower():
-                    if isinstance(value, list):
-                        value = ", ".join(value) if value else "Ninguno"
-                    nombre_campo = key.replace("_", " ").title()
-                    st.markdown(f"**{nombre_campo}:** {value}")
+            st.markdown("<h5 style='color: #164032; margin-bottom: 20px;'>Datos Registrados en el Expediente:</h5>", unsafe_allow_html=True)
+            
+            # --- ITERACIÓN ORDENADA BASADA EN EL MAPEO MAESTRO ---
+            for clave, titulo in ORDEN_CAMPOS.get(tipo_plantilla, []):
+                valor = datos_hc.get(clave, "N/A")
+                
+                if isinstance(valor, list):
+                    valor = ", ".join(valor) if valor else "Ninguno"
+                
+                # Solo mostrar campos que tengan texto real (no vacíos ni N/A)
+                if str(valor).strip() and str(valor).strip() != "N/A":
+                    st.markdown(f"**{titulo}:**")
+                    st.write(valor)
+                    st.markdown("<hr style='margin: 10px 0px; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
 
     # ==========================================
     # MODO EDICIÓN (BORRADOR ACTIVO)
