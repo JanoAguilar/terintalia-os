@@ -237,7 +237,11 @@ def login():
                         query = db.collection("especialistas").where("correo_corporativo", "==", usuario).get()
                         if query:
                             user_doc = query[0].to_dict()
-                            if user_doc.get("password") == password:
+                            
+                            # --- NUEVA VALIDACIÓN: BLOQUEAR SI ESTÁ INACTIVO ---
+                            if user_doc.get("estatus", "ACTIVO").upper() == "INACTIVO":
+                                st.error("🚫 Acceso denegado: Usuario revocado o inactivo. Contacte al administrador.")
+                            elif user_doc.get("password") == password:
                                 st.session_state.autenticado = True
                                 st.session_state.rol = user_doc.get("rol", "ESPECIALISTA").upper()
                                 st.session_state.user_id = user_doc.get("especialista_id_interno")
@@ -287,7 +291,7 @@ else:
         st.title("📊 Resumen de la Clínica")
         st.write("Visión general del estado actual de Terintalia. *(Solo lectura)*")
         
-       # --- INICIO DE LA MODIFICACIÓN ---
+        # --- INICIO DE LA MODIFICACIÓN ---
         todos_docs = db.collection("pacientes").get()
         
         if rol in ["DIRECTOR", "RECEPCIONISTA"]:
@@ -299,8 +303,6 @@ else:
                 if st.session_state.user_id in doc.to_dict().get("med", ""):
                     pacientes_docs.append(doc)
         # --- FIN DE LA MODIFICACIÓN ---
-
-
 
         total_pac = len(pacientes_docs)
         pac_activos = sum(1 for p in pacientes_docs if p.to_dict().get("status") == "ACTIVO")
