@@ -28,9 +28,26 @@ def obtener_codigo_especialidad(esp):
 
 def generar_id_terintalia(db, especialidad, anio_elegido):
     codigo_esp = obtener_codigo_especialidad(especialidad)
+    # Construimos el prefijo exacto. Ej: "TER2024PSIC"
+    prefijo = f"TER{anio_elegido}{codigo_esp}"
+    
     docs = db.collection("pacientes").get()
-    consecutivo = len(docs) + 1
-    return f"TER{anio_elegido}{codigo_esp}{consecutivo}"
+    max_consecutivo = 0
+    
+    # Buscamos cuál es el número más alto que ya existe para ESE año y ESA especialidad
+    for doc in docs:
+        id_pac = doc.to_dict().get("id_p", "")
+        if id_pac.startswith(prefijo):
+            try:
+                # Extraemos solo la parte numérica final
+                num = int(id_pac.replace(prefijo, ""))
+                if num > max_consecutivo:
+                    max_consecutivo = num
+            except ValueError:
+                pass
+                
+    consecutivo = max_consecutivo + 1
+    return f"{prefijo}{consecutivo}"
 
 def render_alta_pacientes(db):
     st.markdown("<h2 style='color: #164032; font-weight: 600; font-size: 26px; margin-bottom: 0px;'>Registro de Nuevo Paciente</h2>", unsafe_allow_html=True)
@@ -72,10 +89,10 @@ def render_alta_pacientes(db):
                 if p_guardado.get("nombre_tutor") != "N/A":
                     st.markdown(f"**Tutor Legal:** <span style='color:#E67E22;'>{p_guardado['nombre_tutor']}</span>", unsafe_allow_html=True)
             with c2:
-                # SE MOSTRARÁ EL ESPECIALISTA ASIGNADO CLARAMENTE
                 st.write(f"**Especialista asignado:** {p_guardado['med']} ({p_guardado['esp']})")
                 if tipo_servicio != "N/A":
                     st.write(f"**Servicio:** {tipo_servicio} ({p_guardado['modalidad']})")
+                st.write(f"**Inicio de Tratamiento:** {p_guardado.get('fecha_inicio_tratamiento', 'N/A')}")
 
         # --- BOTONES DE DESCARGA DE FORMATOS EN BLANCO ---
         st.markdown(f"<h4 style='color: #164032; font-size: 16px; margin-top: 15px;'>🖨️ Formatos en Blanco a Imprimir: {etiqueta_legal}</h4>", unsafe_allow_html=True)
@@ -179,10 +196,16 @@ def render_alta_pacientes(db):
         with st.container(border=True):
             st.markdown("<h4 style='color: #E67E22; font-size: 15px; margin-bottom: 5px;'>🏥 Asignación Clínica</h4>", unsafe_allow_html=True)
             
-            c_hist1, c_hist2 = st.columns(2)
-            with c_hist1: es_historico = st.toggle("¿Es un registro histórico?")
+            # --- NUEVA SECCIÓN DE FECHA DE INICIO DE TRATAMIENTO Y AÑO HISTÓRICO ---
+            c_hist1, c_hist2, c_hist3 = st.columns(3)
+            with c_hist1: 
+                es_historico = st.toggle("¿Es un registro histórico?")
             with c_hist2:
-                anio_registro = st.number_input("Año de registro", min_value=2000, max_value=int(datetime.now().year), value=2024) if es_historico else datetime.now().year
+                # Si no es histórico, usar el año actual y bloquear
+                anio_actual = datetime.now().year
+                anio_registro = st.number_input("Año del registro (Folio)", min_value=2000, max_value=anio_actual, value=anio_actual, disabled=not es_historico)
+            with c_hist3:
+                fecha_inicio_tratamiento = st.date_input("Fecha de inicio de tratamiento", value=datetime.now().date())
 
             f4_c1, f4_c2 = st.columns(2)
             with f4_c1:
@@ -283,6 +306,7 @@ def render_alta_pacientes(db):
                     "nombre": nombre_expediente, 
                     "nombre_titular": nombre_base, 
                     "fecha_registro": datetime.now().strftime("%d/%m/%Y"),
+                    "fecha_inicio_tratamiento": str(fecha_inicio_tratamiento),
                     "f_nac": str(f_nac),
                     "fecha_nac": f_nac.strftime("%d/%m/%Y"), 
                     "edad": edad,
@@ -343,6 +367,7 @@ def render_alta_pacientes(db):
                 st.write(f"**Especialista asignado:** {p['med']} ({p['esp']})")
                 if p['tipo_terapia'] != "N/A":
                     st.write(f"**Servicio:** {p['tipo_terapia']} ({p['modalidad']})")
+                st.write(f"**Inicio de Tratamiento:** {p['fecha_inicio_tratamiento']}")
 
         st.markdown("<h4 style='color: #164032; font-size: 15px;'>¿Confirmar y Guardar en Base de Datos?</h4>", unsafe_allow_html=True)
         b1, b2 = st.columns(2)
