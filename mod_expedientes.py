@@ -47,7 +47,7 @@ def render_expedientes(db, rol, user_id):
     # ==========================================
     with st.container(border=True):
         st.markdown(f"<div style='font-size: 15px;'><b style='color: #164032; font-size: 18px;'>{paciente['nombre']}</b> &nbsp;&nbsp;|&nbsp;&nbsp; Folio: <span style='color: #E67E22; font-weight: bold;'>{id_pac}</span></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='font-size: 14px; color: #555; margin-top: 4px;'><b>Edad:</b> {paciente.get('edad', 'N/A')} años &nbsp;&nbsp;|&nbsp;&nbsp; <b>Servicio:</b> {paciente.get('tipo_terapia', 'N/A')} ({paciente.get('modalidad', 'N/A')}) &nbsp;&nbsp;|&nbsp;&nbsp; <b>Especialista:</b> {paciente.get('med', 'N/A')}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 14px; color: #555; margin-top: 4px;'><b>Edad:</b> {paciente.get('edad', 'N/A')} años &nbsp;&nbsp;|&nbsp;&nbsp; <b>Servicio:</b> {paciente.get('tipo_terapia', 'N/A')} ({paciente.get('modalidad', 'N/A')}) &nbsp;&nbsp;|&nbsp;&nbsp; <b>Inicio Tratamiento:</b> <span style='color:#164032;'>{paciente.get('fecha_inicio_tratamiento', 'N/A')}</span> &nbsp;&nbsp;|&nbsp;&nbsp; <b>Especialista:</b> {paciente.get('med', 'N/A')}</div>", unsafe_allow_html=True)
 
     st.write("")
 
