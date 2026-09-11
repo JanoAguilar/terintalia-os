@@ -182,11 +182,13 @@ def generar_pdf_historia(paciente, datos_hc, tipo_plantilla):
     
     nombre_pac = paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))
     folio = paciente.get('id_p', 'N/A')
+    inicio_tratamiento = paciente.get('fecha_inicio_tratamiento', 'N/A')
     
     # Datos de Validación Legal
     info_expediente = f"""
     <b>Número de Expediente (Folio):</b> {folio}<br/>
     <b>Paciente:</b> {nombre_pac}<br/>
+    <b>Fecha de Inicio de Tratamiento:</b> {inicio_tratamiento}<br/>
     <b>Fecha de Firma y Sello:</b> {datos_hc.get('fecha_firma', 'N/A')}<br/>
     <b>Especialista Firmante:</b> {datos_hc.get('firmado_por', 'N/A')}<br/>
     <b>Formato Clínico Aplicado:</b> {tipo_plantilla}
@@ -335,6 +337,9 @@ def render(db, paciente, id_pac):
         c12.write(f"**Especialista:** {paciente.get('esp', paciente.get('especialista_asignado', 'N/A'))}")
         c13.write(f"**Tipo de Terapia:** {paciente.get('tipo_terapia', paciente.get('servicio', 'N/A'))}")
         c14.write(f"**Modalidad:** {paciente.get('modalidad', 'N/A')}")
+        
+        # Agregamos la fecha de inicio de tratamiento en pantalla
+        st.write(f"**Fecha de Inicio de Tratamiento:** <span style='color:#164032;'>{paciente.get('fecha_inicio_tratamiento', 'N/A')}</span>", unsafe_allow_html=True)
 
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
         
