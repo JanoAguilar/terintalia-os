@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from datetime import datetime
 import io
 from reportlab.lib.pagesizes import letter
@@ -243,6 +244,23 @@ def render(db, id_pac, paciente=None):
     
     # 1. MODO: AGREGAR NOTA COMPLEMENTARIA
     if st.session_state.agregando_comp_a:
+        
+        # --- INYECCIÓN DE JS PARA HACER SCROLL HACIA ARRIBA AUTOMÁTICAMENTE ---
+        components.html(
+            """
+            <script>
+                const parentDoc = window.parent.document;
+                const mainContainer = parentDoc.querySelector('.main') || parentDoc.querySelector('section.main');
+                if (mainContainer) {
+                    mainContainer.scrollTo({top: 0, behavior: 'smooth'});
+                } else {
+                    window.parent.scrollTo({top: 0, behavior: 'smooth'});
+                }
+            </script>
+            """,
+            height=0
+        )
+        
         nota_orig = st.session_state.agregando_comp_a
         sesion_nombre = nota_orig.get("sesion_num", "Sesión")
         
@@ -279,6 +297,9 @@ def render(db, id_pac, paciente=None):
 
     # 1.1 CONFIRMAR NOTA COMPLEMENTARIA
     elif st.session_state.conf_sello_comp:
+        
+        components.html("<script>window.parent.document.querySelector('.main').scrollTo({top: 0, behavior: 'smooth'});</script>", height=0)
+        
         st.error("🚨 **ADVERTENCIA LEGAL:** Estás a punto de **SELLAR DEFINITIVAMENTE** esta Nota Complementaria. \n\nQuedará anexada permanentemente al registro. ¿Confirmas que el texto es correcto?")
         c1, c2 = st.columns(2)
         if c1.button("🔐 SÍ, ESTOY SEGURO, SELLAR COMPLEMENTO", type="primary", use_container_width=True):
@@ -494,6 +515,7 @@ def render(db, id_pac, paciente=None):
     # PANTALLAS DE CONFIRMACIÓN (NOTAS NORMALES)
     # ==========================================
     elif st.session_state.conf_borrador_n:
+        components.html("<script>window.parent.document.querySelector('.main').scrollTo({top: 0, behavior: 'smooth'});</script>", height=0)
         st.warning("⚠️ **ATENCIÓN:** Estás a punto de guardar esta nota como **Borrador**. La nota aún no tendrá validez legal y podrás seguir editándola después. ¿Deseas continuar?")
         c1, c2 = st.columns(2)
         if c1.button("✅ SÍ, GUARDAR BORRADOR", use_container_width=True):
@@ -509,6 +531,7 @@ def render(db, id_pac, paciente=None):
             st.rerun()
 
     elif st.session_state.conf_sello_n:
+        components.html("<script>window.parent.document.querySelector('.main').scrollTo({top: 0, behavior: 'smooth'});</script>", height=0)
         st.error("🚨 **ADVERTENCIA LEGAL:** Estás a punto de **SELLAR DEFINITIVAMENTE** esta Nota. \n\nEsta acción es **IRREVERSIBLE** y el documento quedará anexado al historial del paciente sin posibilidad de modificación futura. ¿Confirmas que los datos son correctos?")
         c1, c2 = st.columns(2)
         if c1.button("🔐 SÍ, ESTOY SEGURO, FIRMAR Y SELLAR", type="primary", use_container_width=True):
