@@ -9,19 +9,11 @@ from reportlab.lib.enums import TA_CENTER
 # ==========================================
 # FUNCIÓN AUXILIAR: ESTRUCTURAR NOTA PARA PDF
 # ==========================================
-def estructurar_contenido_nota(n, tipo):
+def estructurar_contenido_nota(n, tipo, complementos=None):
     """Devuelve una lista de tuplas (Título, Contenido) según el tipo de nota para generar el PDF o mostrar en pantalla."""
     campos = []
-    
-    # 1. SI ES UNA NOTA COMPLEMENTARIA
-    if tipo == "NOTA COMPLEMENTARIA":
-        campos.extend([
-            ("Referencia", f"Complementa a: {n.get('nota_referencia', 'N/A')}"),
-            ("Aclaración o Adición", n.get('nc_texto', ''))
-        ])
-        return campos
 
-    # 2. RESTO DE NOTAS NORMALES
+    # 1. NOTAS NORMALES
     if tipo == "NOTA S.O.A.P. (Psicología)":
         if "s_subjetivo" in n:
             campos.extend([
@@ -66,6 +58,13 @@ def estructurar_contenido_nota(n, tipo):
             ("A — Análisis", n.get('fis_a_analisis','')),
             ("P — Plan", f"Intervención: {n.get('fis_p_intervencion','')}\nIndicaciones: {n.get('fis_p_indicaciones','')}")
         ])
+
+    # 2. AGREGAR LAS NOTAS COMPLEMENTARIAS AL FINAL
+    if complementos:
+        for idx, comp in enumerate(complementos):
+            titulo_comp = f"📌 NOTA COMPLEMENTARIA {idx+1} ({comp.get('fecha_sistema', '')} por {comp.get('autor', '')})"
+            campos.append((titulo_comp, comp.get('nc_texto', '')))
+
     return campos
 
 # ==========================================
@@ -86,9 +85,10 @@ def crear_encabezado_pdf(paciente, elements, styles):
     elements.append(Paragraph(info_paciente, normal_style))
     elements.append(Spacer(1, 15))
 
-def compilar_nota_pdf(nota, elements, styles):
+def compilar_nota_pdf(nota, elements, styles, complementos=None):
     heading_style = ParagraphStyle(name="Heading", parent=styles['Heading2'], fontSize=12, spaceAfter=5, textColor="#2980B9")
     sub_heading = ParagraphStyle(name="SubHeading", parent=styles['Heading3'], fontSize=10, spaceAfter=2, textColor="#D35400")
+    comp_heading = ParagraphStyle(name="CompHeading", parent=styles['Heading3'], fontSize=10, spaceAfter=2, textColor="#8E44AD")
     normal_style = ParagraphStyle(name="NormalTexto", parent=styles['Normal'], fontSize=10, spaceAfter=12, leading=14)
     
     tipo = nota.get("tipo_nota", "Nota Clínica")
@@ -96,40 +96,41 @@ def compilar_nota_pdf(nota, elements, styles):
     fecha = nota.get("fecha_sesion_str", nota.get("fecha_sistema", "")[:10])
     autor = nota.get("autor", "Especialista")
     
-    # Diferenciar visualmente la nota complementaria en el título
-    if tipo == "NOTA COMPLEMENTARIA":
-        encabezado_nota = f"<font color='#8E44AD'><b>{sesion} (Complementaria)</b></font> | Fecha: {fecha} | Firmada por: {autor}"
-    else:
-        encabezado_nota = f"<b>{sesion}</b> | Fecha: {fecha} | Modalidad: {tipo} | Firmada por: {autor}"
-        
+    encabezado_nota = f"<b>{sesion}</b> | Fecha: {fecha} | Modalidad: {tipo} | Firmada por: {autor}"
     elements.append(Paragraph(encabezado_nota, heading_style))
     
-    campos = estructurar_contenido_nota(nota, tipo)
+    campos = estructurar_contenido_nota(nota, tipo, complementos)
     for titulo, contenido in campos:
         if str(contenido).strip() and str(contenido).strip() != "N/A":
             contenido_limpio = str(contenido).replace('\n', '<br />')
-            elements.append(Paragraph(titulo, sub_heading))
+            
+            # Estilo diferente para el título si es Complementaria
+            if "NOTA COMPLEMENTARIA" in titulo:
+                elements.append(Paragraph(titulo, comp_heading))
+            else:
+                elements.append(Paragraph(titulo, sub_heading))
+                
             elements.append(Paragraph(contenido_limpio, normal_style))
     
     elements.append(Spacer(1, 10))
     elements.append(Paragraph("_" * 80, styles['Normal'])) 
     elements.append(Spacer(1, 10))
 
-def generar_pdf_individual(paciente, nota):
+def generar_pdf_individual(paciente, nota, complementos):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     styles = getSampleStyleSheet()
     elements = []
     
     crear_encabezado_pdf(paciente, elements, styles)
-    compilar_nota_pdf(nota, elements, styles)
+    compilar_nota_pdf(nota, elements, styles, complementos)
     
     doc.build(elements)
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
 
-def generar_pdf_todas(paciente, notas_selladas):
+def generar_pdf_todas(paciente, notas_normales, notas_complementarias):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     styles = getSampleStyleSheet()
@@ -137,10 +138,12 @@ def generar_pdf_todas(paciente, notas_selladas):
     
     crear_encabezado_pdf(paciente, elements, styles)
     
-    notas_cronologicas = sorted(notas_selladas, key=lambda x: x.get("fecha_sistema", ""))
+    # Orden cronológico del inicio al fin
+    notas_cronologicas = sorted(notas_normales, key=lambda x: x.get("fecha_sistema", ""))
     
     for nota in notas_cronologicas:
-        compilar_nota_pdf(nota, elements, styles)
+        comps = [c for c in notas_complementarias if c.get("referencia_id") == nota.get("_id")]
+        compilar_nota_pdf(nota, elements, styles, comps)
         
     doc.build(elements)
     pdf_bytes = buffer.getvalue()
@@ -154,6 +157,11 @@ def render(db, id_pac, paciente=None):
     if 'conf_borrador_n' not in st.session_state: st.session_state.conf_borrador_n = False
     if 'conf_sello_n' not in st.session_state: st.session_state.conf_sello_n = False
     if 'tmp_nota' not in st.session_state: st.session_state.tmp_nota = {}
+    
+    # Variables de estado para Notas Complementarias
+    if 'agregando_comp_a' not in st.session_state: st.session_state.agregando_comp_a = None
+    if 'conf_sello_comp' not in st.session_state: st.session_state.conf_sello_comp = False
+    if 'tmp_comp' not in st.session_state: st.session_state.tmp_comp = {}
 
     if paciente is None:
         doc_p = db.collection("pacientes").document(id_pac).get()
@@ -164,18 +172,19 @@ def render(db, id_pac, paciente=None):
 
     opciones_notas = []
     if "FISIO" in esp_upper:
-        opciones_notas = ["NOTA FISIOTERAPIA", "NOTA COMPLEMENTARIA"]
+        opciones_notas = ["NOTA FISIOTERAPIA"]
     elif "NUTRI" in esp_upper:
-        opciones_notas = ["NOTA NUTRICIÓN", "NOTA COMPLEMENTARIA"]
+        opciones_notas = ["NOTA NUTRICIÓN"]
     elif terapia == "De Pareja":
-        opciones_notas = ["NOTA TERAPIA DE PAREJA", "NOTA COMPLEMENTARIA"]
+        opciones_notas = ["NOTA TERAPIA DE PAREJA"]
     else:
-        opciones_notas = ["NOTA S.O.A.P. (Psicología)", "NOTA E.M.D.R.", "NOTA COMPLEMENTARIA"]
+        opciones_notas = ["NOTA S.O.A.P. (Psicología)", "NOTA E.M.D.R."]
 
     # --- LECTURA DE NOTAS PREVIAS Y BORRADORES ---
     todas_las_notas_ref = db.collection("pacientes").document(id_pac).collection("notas_evolucion").get()
     
-    notas_selladas = []
+    notas_normales = []
+    notas_complementarias = []
     datos_borrador = {}
 
     for doc in todas_las_notas_ref:
@@ -185,10 +194,13 @@ def render(db, id_pac, paciente=None):
             n_data = doc.to_dict()
             n_data["_id"] = doc.id  # Guardamos el ID del documento
             if n_data.get("estado") == "SELLADA":
-                notas_selladas.append(n_data)
+                if n_data.get("tipo_nota") == "NOTA COMPLEMENTARIA":
+                    notas_complementarias.append(n_data)
+                else:
+                    notas_normales.append(n_data)
 
     # --- LÓGICA DE SECUENCIA Y ANTI-DUPLICADOS (EVALUACIÓN INICIAL = SESIÓN 1) ---
-    sesiones_usadas = [n.get("sesion_num", "").strip() for n in notas_selladas if n.get("tipo_nota") != "NOTA COMPLEMENTARIA"]
+    sesiones_usadas = [n.get("sesion_num", "").strip() for n in notas_normales]
     
     max_sesion = 0
     tiene_evaluacion = False
@@ -228,7 +240,60 @@ def render(db, id_pac, paciente=None):
     # ==========================================
     # PANTALLAS PRINCIPALES DE ENTRADA
     # ==========================================
-    if not st.session_state.conf_borrador_n and not st.session_state.conf_sello_n:
+    
+    # 1. MODO: AGREGAR NOTA COMPLEMENTARIA
+    if st.session_state.agregando_comp_a:
+        nota_orig = st.session_state.agregando_comp_a
+        sesion_nombre = nota_orig.get("sesion_num", "Sesión")
+        
+        with st.container(border=True):
+            st.markdown(f"<h3 style='color:#8E44AD;'>📌 Agregar Nota Complementaria a: {sesion_nombre}</h3>", unsafe_allow_html=True)
+            st.info("La nota complementaria se anexará al documento original sin modificar su contenido legal. Utilice este espacio para hacer adiciones o aclaraciones a la sesión ya sellada.")
+            
+            with st.form("form_complemento"):
+                texto_comp = st.text_area("Redacte la adición o aclaración clínica:", height=200)
+                
+                st.write("")
+                c1, c2 = st.columns(2)
+                submit_comp = c1.form_submit_button("🔐 FIRMAR Y SELLAR COMPLEMENTO", type="primary", use_container_width=True)
+                cancel_comp = c2.form_submit_button("❌ CANCELAR", use_container_width=True)
+                
+                if submit_comp:
+                    if not texto_comp.strip():
+                        st.error("El texto de la nota complementaria no puede estar vacío.")
+                    else:
+                        st.session_state.tmp_comp = {
+                            "tipo_nota": "NOTA COMPLEMENTARIA",
+                            "referencia_id": nota_orig["_id"],
+                            "referencia_sesion": sesion_nombre,
+                            "nc_texto": texto_comp,
+                            "estado": "SELLADA",
+                            "fecha_sistema": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            "autor": st.session_state.get("nombre", "Especialista")
+                        }
+                        st.session_state.conf_sello_comp = True
+                        st.rerun()
+                if cancel_comp:
+                    st.session_state.agregando_comp_a = None
+                    st.rerun()
+
+    # 1.1 CONFIRMAR NOTA COMPLEMENTARIA
+    elif st.session_state.conf_sello_comp:
+        st.error("🚨 **ADVERTENCIA LEGAL:** Estás a punto de **SELLAR DEFINITIVAMENTE** esta Nota Complementaria. \n\nQuedará anexada permanentemente al registro. ¿Confirmas que el texto es correcto?")
+        c1, c2 = st.columns(2)
+        if c1.button("🔐 SÍ, ESTOY SEGURO, SELLAR COMPLEMENTO", type="primary", use_container_width=True):
+            payload_final = st.session_state.tmp_comp
+            db.collection("pacientes").document(id_pac).collection("notas_evolucion").add(payload_final)
+            st.session_state.conf_sello_comp = False
+            st.session_state.agregando_comp_a = None
+            st.success("Nota complementaria anexada y sellada legalmente.")
+            st.rerun()
+        if c2.button("❌ CANCELAR Y REVISAR TEXTO", use_container_width=True):
+            st.session_state.conf_sello_comp = False
+            st.rerun()
+
+    # 2. MODO: CREAR NOTA NORMAL
+    elif not st.session_state.conf_borrador_n and not st.session_state.conf_sello_n:
         
         expandir_formulario = True if datos_borrador else False
         titulo_expander = f"📝 CONTINUAR BORRADOR ACTIVO - {datos_borrador.get('sesion_num', '')}" if datos_borrador else "✍️ CREAR NUEVA NOTA DE EVOLUCIÓN"
@@ -258,45 +323,19 @@ def render(db, id_pac, paciente=None):
                 
                 valor_guardado = datos_borrador.get("sesion_num", sesion_sugerida)
                 
-                # SI ES NOTA COMPLEMENTARIA
-                if tipo_nota == "NOTA COMPLEMENTARIA":
-                    st.info("📌 **La Nota Complementaria** sirve para hacer aclaraciones, adiciones o correcciones a una sesión previamente sellada. El documento original permanecerá inalterado.")
-                    
-                    if not notas_selladas:
-                        st.error("No hay notas selladas en este expediente para complementar.")
-                        sesion_final = ""
-                        payload["sesion_num"] = ""
-                        payload["nota_referencia"] = ""
-                    else:
-                        # Lista de sesiones previas para referenciar
-                        opciones_ref = [f"{n.get('fecha_sesion_str', '')} | {n.get('sesion_num', '')}" for n in sorted(notas_selladas, key=lambda x: x.get("fecha_sistema", ""), reverse=True) if n.get("tipo_nota") != "NOTA COMPLEMENTARIA"]
-                        
-                        if not opciones_ref:
-                            st.warning("Solo puedes complementar notas regulares, no otras notas complementarias.")
-                            sesion_final = ""
-                        else:
-                            ref_sel = c_ses.selectbox("¿A qué sesión deseas agregar información?", opciones_ref)
-                            # Generamos un ID único para que no choque con la sesión original
-                            sesion_final = f"Anexo de {ref_sel.split(' | ')[1]}"
-                            payload["sesion_num"] = sesion_final
-                            payload["nota_referencia"] = ref_sel
+                sesion_sel = c_ses.selectbox("Número o Tipo de Sesión:", lista_sesiones, index=lista_sesiones.index(valor_guardado) if valor_guardado in lista_sesiones else 0)
                 
-                # SI ES NOTA NORMAL
+                if sesion_sel == "Otra (Especificar manualmente)":
+                    sesion_final = c_ses.text_input("Escriba el nombre o número de la sesión:", placeholder="Ej. Sesión Familiar de Emergencia")
                 else:
-                    sesion_sel = c_ses.selectbox("Número o Tipo de Sesión:", lista_sesiones, index=lista_sesiones.index(valor_guardado) if valor_guardado in lista_sesiones else 0)
+                    sesion_final = sesion_sel
                     
-                    if sesion_sel == "Otra (Especificar manualmente)":
-                        sesion_final = c_ses.text_input("Escriba el nombre o número de la sesión:", placeholder="Ej. Sesión Familiar de Emergencia")
-                    else:
-                        sesion_final = sesion_sel
-                        
-                    payload["sesion_num"] = sesion_final
-                    
-                    if len(notas_selladas) == 0:
-                        c_ses.caption("*(No hay sesiones previas. Debe ser Evaluación Inicial)*")
-                    elif max_sesion > 0:
-                        c_ses.caption(f"*(La Evaluación Inicial cuenta como Sesión 1. Última registrada: {max_sesion})*")
+                payload["sesion_num"] = sesion_final
                 
+                if len(notas_normales) == 0:
+                    c_ses.caption("*(No hay sesiones previas. Debe ser Evaluación Inicial)*")
+                elif max_sesion > 0:
+                    c_ses.caption(f"*(La Evaluación Inicial cuenta como Sesión 1. Última registrada: {max_sesion})*")
                 
                 fecha_str = datos_borrador.get("fecha_sesion_str", "")
                 try: 
@@ -304,16 +343,11 @@ def render(db, id_pac, paciente=None):
                 except: 
                     default_date = datetime.today().date()
                 
-                fecha_obj = c_fec.date_input("Fecha en que se añade la nota:" if tipo_nota == "NOTA COMPLEMENTARIA" else "Fecha de la sesión:", value=default_date)
+                fecha_obj = c_fec.date_input("Fecha de la sesión:", value=default_date)
                 payload["fecha_sesion_str"] = str(fecha_obj)
 
-                # --- CAMPOS COMPLEMENTARIA ---
-                if tipo_nota == "NOTA COMPLEMENTARIA":
-                    st.markdown("<h5 style='color: #8E44AD;'>✍️ Aclaración o Adición Clínica</h5>", unsafe_allow_html=True)
-                    payload["nc_texto"] = st.text_area("Describa la información que desea agregar al expediente:", value=datos_borrador.get("nc_texto", ""), height=200)
-
                 # --- CAMPOS S.O.A.P. ---
-                elif tipo_nota == "NOTA S.O.A.P. (Psicología)":
+                if tipo_nota == "NOTA S.O.A.P. (Psicología)":
                     st.info("💡 **Redacción Libre:** Escribe todo tu reporte en los cuadros. Tienen altura adaptativa para textos largos.")
                     
                     st.markdown("<h5 style='color: #164032; margin-bottom: 0px;'>🗣️ S — Subjetivo</h5>", unsafe_allow_html=True)
@@ -441,8 +475,8 @@ def render(db, id_pac, paciente=None):
             if btn_firmar:
                 sesion_evaluar = payload["sesion_num"].strip()
                 
-                # Candado Anti-Duplicados (No aplica a complementarias)
-                if tipo_nota != "NOTA COMPLEMENTARIA" and sesion_evaluar in sesiones_usadas:
+                # Candado Anti-Duplicados
+                if sesion_evaluar in sesiones_usadas:
                     st.error(f"🚨 **Sesión Duplicada:** Ya existe una nota sellada para '{sesion_evaluar}'. Por favor, modifique el nombre o número de la sesión.")
                 elif sesion_evaluar == "":
                     st.error("🚨 Debe seleccionar una sesión válida o ingresar un identificador.")
@@ -457,7 +491,7 @@ def render(db, id_pac, paciente=None):
                         st.rerun()
 
     # ==========================================
-    # PANTALLAS DE CONFIRMACIÓN
+    # PANTALLAS DE CONFIRMACIÓN (NOTAS NORMALES)
     # ==========================================
     elif st.session_state.conf_borrador_n:
         st.warning("⚠️ **ATENCIÓN:** Estás a punto de guardar esta nota como **Borrador**. La nota aún no tendrá validez legal y podrás seguir editándola después. ¿Deseas continuar?")
@@ -500,35 +534,31 @@ def render(db, id_pac, paciente=None):
     with c_hist_1:
         st.markdown("<h4 style='color: #E67E22; font-size: 16px; margin-top: 15px;'>📜 Historial de Notas de Evolución</h4>", unsafe_allow_html=True)
     
-    notas_selladas.sort(key=lambda x: x.get("fecha_sistema", ""), reverse=True)
+    notas_normales.sort(key=lambda x: x.get("fecha_sistema", ""), reverse=True)
     
     with c_hist_2:
-        if notas_selladas:
+        if notas_normales:
             st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-            pdf_todas = generar_pdf_todas(paciente, notas_selladas)
+            pdf_todas = generar_pdf_todas(paciente, notas_normales, notas_complementarias)
             st.download_button("📥 Exportar TODAS las Sesiones (PDF)", data=pdf_todas, file_name=f"Notas_Evolucion_{paciente.get('nombre', 'Paciente')}_Completas.pdf", mime="application/pdf", use_container_width=True, type="primary")
     
-    if not notas_selladas:
+    if not notas_normales:
         st.info("No hay notas previas registradas en este expediente.")
     else:
-        for idx, n in enumerate(notas_selladas):
+        for idx, n in enumerate(notas_normales):
             tipo = n.get("tipo_nota", "Nota Clínica")
             sesion = n.get("sesion_num", "S/N")
             fecha = n.get("fecha_sesion_str", n.get("fecha_sistema", "")[:10])
             autor = n.get("autor", "Especialista")
             
-            # Etiqueta visual especial si es nota complementaria
-            if tipo == "NOTA COMPLEMENTARIA":
-                header_expander = f"📌 {fecha} | {sesion} | 👨‍⚕️ {autor}"
-            else:
-                header_expander = f"📅 {fecha} | {sesion} | {tipo} | 👨‍⚕️ {autor}"
-
-            with st.expander(header_expander):
+            with st.expander(f"📅 {fecha} | {sesion} | {tipo} | 👨‍⚕️ {autor}"):
                 c_head1, c_head2 = st.columns([3, 1])
                 c_head1.caption(f"Sellada en sistema el: {n.get('fecha_sistema', '')}")
                 
-                pdf_individual = generar_pdf_individual(paciente, n)
-                # LLAVE ÚNICA PARA EVITAR EL ERROR DE STREAMLIT DUPLICATE ELEMENT KEY
+                # Obtenemos los complementos si existen
+                comps_de_esta_nota = [c for c in notas_complementarias if c.get("referencia_id") == n.get("_id")]
+                
+                pdf_individual = generar_pdf_individual(paciente, n, comps_de_esta_nota)
                 c_head2.download_button(
                     "📥 PDF de esta sesión", 
                     data=pdf_individual, 
@@ -538,7 +568,17 @@ def render(db, id_pac, paciente=None):
                     key=f"dl_nota_{idx}_{n.get('fecha_sistema','')}"
                 )
                 
-                campos = estructurar_contenido_nota(n, tipo)
+                campos = estructurar_contenido_nota(n, tipo, comps_de_esta_nota)
                 for titulo, contenido in campos:
                     if str(contenido).strip() and str(contenido).strip() != "N/A":
-                        st.markdown(f"**{titulo}:**\n{contenido}")
+                        if "COMPLEMENTARIA" in titulo:
+                            # Resaltado visual para las notas complementarias
+                            st.markdown(f"<div style='background-color:#F5EEF8; padding:10px; border-radius:5px; margin-top:10px; border-left: 4px solid #8E44AD;'><b style='color:#8E44AD;'>{titulo}:</b><br>{contenido}</div>", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"**{titulo}:**\n{contenido}")
+                
+                # BOTÓN INTELIGENTE DE NOTA COMPLEMENTARIA
+                st.markdown("---")
+                if st.button(f"➕ Agregar Nota Complementaria a {sesion}", key=f"btn_add_comp_{n['_id']}", use_container_width=True):
+                    st.session_state.agregando_comp_a = n
+                    st.rerun()
