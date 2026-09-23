@@ -112,7 +112,10 @@ ORDEN_CAMPOS = {
         ("nut_signos_fisicos", "Signos Físicos Generales"),
         ("nut_medicos", "Antecedentes Médicos y Quirúrgicos"),
         ("nut_meds", "Medicamentos, Suplementos, Sustancias"),
-        ("nut_agua_litros", "Consumo de Agua (Litros/día)"),
+        ("nut_heredofamiliares", "Antecedentes Heredofamiliares Relevantes"),
+        ("nut_contexto_fam", "Contexto Familiar-Alimentario"),
+        ("nut_tca_fam", "Antecedentes Familiares de TCA o Alteraciones"),
+        ("nut_tca_fam_cual", "Parentesco y Especificación de TCA"),
         ("nut_agua_rango", "Rango de Consumo de Agua"),
         ("nut_aceite", "Tipo de Aceite Utilizado"),
         ("nut_aceite_otro_opcional", "Otro Aceite Específico"),
@@ -555,14 +558,28 @@ def render(db, paciente, id_pac):
 
                     with st.expander("III. Antecedentes Médicos Personales"):
                         payload["nut_medicos"] = st.text_area("Antecedentes Médicos y Quirúrgicos:", value=datos_hc.get("nut_medicos", ""))
-                        payload["nut_meds"] = st.text_area("Medicamentos, Suplementos, Tabaco/Drogas:", value=datos_hc.get("nut_meds", ""))
+                        payload["nut_meds"] = st.text_area("Medicamentos, Suplementos, Sustancias:", value=datos_hc.get("nut_meds", ""))
+                        
+                        # --- NUEVOS CAMPOS ---
+                        st.markdown("---")
+                        payload["nut_heredofamiliares"] = st.text_area("Antecedentes heredofamiliares relevantes:", value=datos_hc.get("nut_heredofamiliares", ""))
 
                     with st.expander("IV. Hábitos Alimenticios y Recordatorio 24h"):
-                        c_agua1, c_agua2 = st.columns(2)
-                        payload["nut_agua_litros"] = c_agua1.text_input("Cantidad aproximada de agua (litros/día):", value=datos_hc.get("nut_agua_litros", ""))
-                        opciones_agua = ["", "Menos de 1 litro", "1–1.5 litros", "1.5–2 litros", "Más de 2 litros", "No sabe"]
-                        payload["nut_agua_rango"] = c_agua2.selectbox("Rango de agua consumida:", opciones_agua, index=opciones_agua.index(datos_hc.get("nut_agua_rango", "")) if datos_hc.get("nut_agua_rango", "") in opciones_agua else 0)
+                        # --- NUEVOS CAMPOS ---
+                        payload["nut_contexto_fam"] = st.text_area("Contexto familiar-alimentario:", value=datos_hc.get("nut_contexto_fam", ""))
                         
+                        c_tca1, c_tca2 = st.columns(2)
+                        opciones_tca = ["", "Sí", "No", "Se desconoce"]
+                        payload["nut_tca_fam"] = c_tca1.selectbox("Antecedentes familiares de TCA o alteraciones de la conducta alimentaria:", opciones_tca, index=opciones_tca.index(datos_hc.get("nut_tca_fam", "")) if datos_hc.get("nut_tca_fam", "") in opciones_tca else 0)
+                        payload["nut_tca_fam_cual"] = c_tca2.text_input("¿Cuál y parentesco?", value=datos_hc.get("nut_tca_fam_cual", ""))
+                        
+                        st.markdown("---")
+                        
+                        # --- CAMPO ACTUALIZADO (AGUA) ---
+                        opciones_agua = ["", "<500 mL/día", "500–999 mL/día", "1–1.49 L/día", "1.5–1.99 L/día", "2–2.49 L/día", "2.5–2.99 L/día", "≥3 L/día"]
+                        payload["nut_agua_rango"] = st.selectbox("Consumo de agua (Rango diario):", opciones_agua, index=opciones_agua.index(datos_hc.get("nut_agua_rango", "")) if datos_hc.get("nut_agua_rango", "") in opciones_agua else 0)
+                        
+                        st.markdown("---")
                         c_ace1, c_ace2 = st.columns(2)
                         opciones_aceite = ["", "Aceite vegetal", "Aceite de oliva", "Aceite de canola", "Aceite de aguacate", "Manteca", "Mantequilla", "No utiliza aceite", "Otro"]
                         payload["nut_aceite"] = c_ace1.selectbox("Tipo de aceite con el que cocina:", opciones_aceite, index=opciones_aceite.index(datos_hc.get("nut_aceite", "")) if datos_hc.get("nut_aceite", "") in opciones_aceite else 0)
