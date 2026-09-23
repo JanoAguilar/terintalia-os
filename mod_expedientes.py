@@ -14,26 +14,56 @@ def render_expedientes(db, rol, user_id):
     st.write("")
     
     # ==========================================
-    # 1. SELECCIÓN DE PACIENTE
+    # 1. SELECCIÓN DE PACIENTE (CON FILTRO PARA ADMINS)
     # ==========================================
     docs_pacientes = db.collection("pacientes").where("status", "==", "ACTIVO").get()
-    lista_pacientes = []
+    lista_pacientes_cruda = []
     
     for doc in docs_pacientes:
         p = doc.to_dict()
         if rol == "ESPECIALISTA":
+            # Si es especialista, solo ve a los suyos
             if user_id in p.get("med", ""):
-                lista_pacientes.append(p)
+                lista_pacientes_cruda.append(p)
         else:
-            lista_pacientes.append(p)
+            # Si es admin o recepcionista, los ve todos
+            lista_pacientes_cruda.append(p)
 
-    if not lista_pacientes:
+    if not lista_pacientes_cruda:
         st.warning("⚠️ No hay expedientes activos disponibles para tu perfil.")
         return
 
-    nombres_pac = {f"{p['nombre']} (Folio: {p['id_p']})": p for p in lista_pacientes}
-    
-    pac_sel = st.selectbox("🔍 Buscar y Seleccionar Expediente:", ["-- Seleccione un expediente --"] + list(nombres_pac.keys()), key="memoria_paciente")
+    # Lógica de renderizado según el rol
+    if rol != "ESPECIALISTA":
+        # Interfaz de búsqueda a 2 columnas para Admins
+        c_filtro, c_busca = st.columns([1, 2])
+        
+        # Extraemos las especialidades únicas de los pacientes registrados
+        especialidades = sorted(list(set([p.get("esp", "Sin Especialidad") for p in lista_pacientes_cruda])))
+        
+        with c_filtro:
+            filtro_esp = st.selectbox("🎯 Filtrar por Especialidad:", ["Todas"] + especialidades)
+            
+        # Aplicamos el filtro si el admin seleccionó una especialidad
+        if filtro_esp != "Todas":
+            lista_pacientes_filtrada = [p for p in lista_pacientes_cruda if p.get("esp", "Sin Especialidad") == filtro_esp]
+        else:
+            lista_pacientes_filtrada = lista_pacientes_cruda
+            
+        with c_busca:
+            nombres_pac = {f"{p['nombre']} (Folio: {p['id_p']})": p for p in lista_pacientes_filtrada}
+            pac_sel = st.selectbox("🔍 Buscar y Seleccionar Expediente:", ["-- Seleccione un expediente --"] + list(nombres_pac.keys()), key="memoria_paciente")
+            
+    else:
+        # Interfaz normal de 1 columna para Especialistas (no necesitan el filtro)
+        lista_pacientes_filtrada = lista_pacientes_cruda
+        nombres_pac = {f"{p['nombre']} (Folio: {p['id_p']})": p for p in lista_pacientes_filtrada}
+        pac_sel = st.selectbox("🔍 Buscar y Seleccionar Expediente:", ["-- Seleccione un expediente --"] + list(nombres_pac.keys()), key="memoria_paciente")
+
+    # Validación por si el filtro deja la lista vacía
+    if not nombres_pac:
+        st.info("No hay pacientes registrados bajo esta especialidad.")
+        return
 
     if pac_sel == "-- Seleccione un expediente --":
         st.info("Seleccione un paciente en el buscador superior para abrir su archivero clínico.")
