@@ -12,6 +12,16 @@ from reportlab.lib.enums import TA_CENTER
 def estructurar_contenido_nota(n, tipo):
     """Devuelve una lista de tuplas (Título, Contenido) según el tipo de nota para generar el PDF o mostrar en pantalla."""
     campos = []
+    
+    # 1. SI ES UNA NOTA COMPLEMENTARIA
+    if tipo == "NOTA COMPLEMENTARIA":
+        campos.extend([
+            ("Referencia", f"Complementa a: {n.get('nota_referencia', 'N/A')}"),
+            ("Aclaración o Adición", n.get('nc_texto', ''))
+        ])
+        return campos
+
+    # 2. RESTO DE NOTAS NORMALES
     if tipo == "NOTA S.O.A.P. (Psicología)":
         if "s_subjetivo" in n:
             campos.extend([
@@ -66,9 +76,12 @@ def crear_encabezado_pdf(paciente, elements, styles):
     normal_style = ParagraphStyle(name="Normal", parent=styles['Normal'], fontSize=10, spaceAfter=5)
     
     elements.append(Paragraph("REPORTE DE EVOLUCIÓN CLÍNICA - TERINTALIA OS", title_style))
+    inicio_tratamiento = paciente.get('fecha_inicio_tratamiento', 'N/A')
+    
     info_paciente = f"""
     <b>Paciente:</b> {paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))} | <b>Folio:</b> {paciente.get('id_p', 'N/A')}<br/>
-    <b>Edad:</b> {paciente.get('edad', 'N/A')} años | <b>Especialista Principal:</b> {paciente.get('esp', paciente.get('especialista_asignado', 'N/A'))}
+    <b>Edad:</b> {paciente.get('edad', 'N/A')} años | <b>Especialista Principal:</b> {paciente.get('esp', paciente.get('especialista_asignado', 'N/A'))}<br/>
+    <b>Inicio de Tratamiento:</b> {inicio_tratamiento}
     """
     elements.append(Paragraph(info_paciente, normal_style))
     elements.append(Spacer(1, 15))
@@ -83,7 +96,12 @@ def compilar_nota_pdf(nota, elements, styles):
     fecha = nota.get("fecha_sesion_str", nota.get("fecha_sistema", "")[:10])
     autor = nota.get("autor", "Especialista")
     
-    encabezado_nota = f"<b>{sesion}</b> | Fecha: {fecha} | Modalidad: {tipo} | Firmada por: {autor}"
+    # Diferenciar visualmente la nota complementaria en el título
+    if tipo == "NOTA COMPLEMENTARIA":
+        encabezado_nota = f"<font color='#8E44AD'><b>{sesion} (Complementaria)</b></font> | Fecha: {fecha} | Firmada por: {autor}"
+    else:
+        encabezado_nota = f"<b>{sesion}</b> | Fecha: {fecha} | Modalidad: {tipo} | Firmada por: {autor}"
+        
     elements.append(Paragraph(encabezado_nota, heading_style))
     
     campos = estructurar_contenido_nota(nota, tipo)
@@ -146,13 +164,13 @@ def render(db, id_pac, paciente=None):
 
     opciones_notas = []
     if "FISIO" in esp_upper:
-        opciones_notas = ["NOTA FISIOTERAPIA"]
+        opciones_notas = ["NOTA FISIOTERAPIA", "NOTA COMPLEMENTARIA"]
     elif "NUTRI" in esp_upper:
-        opciones_notas = ["NOTA NUTRICIÓN"]
+        opciones_notas = ["NOTA NUTRICIÓN", "NOTA COMPLEMENTARIA"]
     elif terapia == "De Pareja":
-        opciones_notas = ["NOTA TERAPIA DE PAREJA"]
+        opciones_notas = ["NOTA TERAPIA DE PAREJA", "NOTA COMPLEMENTARIA"]
     else:
-        opciones_notas = ["NOTA S.O.A.P. (Psicología)", "NOTA E.M.D.R."]
+        opciones_notas = ["NOTA S.O.A.P. (Psicología)", "NOTA E.M.D.R.", "NOTA COMPLEMENTARIA"]
 
     # --- LECTURA DE NOTAS PREVIAS Y BORRADORES ---
     todas_las_notas_ref = db.collection("pacientes").document(id_pac).collection("notas_evolucion").get()
@@ -165,11 +183,13 @@ def render(db, id_pac, paciente=None):
             datos_borrador = doc.to_dict()
         else:
             n_data = doc.to_dict()
+            n_data["_id"] = doc.id  # Guardamos el ID del documento
             if n_data.get("estado") == "SELLADA":
                 notas_selladas.append(n_data)
 
     # --- LÓGICA DE SECUENCIA Y ANTI-DUPLICADOS (EVALUACIÓN INICIAL = SESIÓN 1) ---
-    sesiones_usadas = [n.get("sesion_num", "").strip() for n in notas_selladas]
+    sesiones_usadas = [n.get("sesion_num", "").strip() for n in notas_selladas if n.get("tipo_nota") != "NOTA COMPLEMENTARIA"]
+    
     max_sesion = 0
     tiene_evaluacion = False
     tiene_cierre = False
@@ -178,7 +198,7 @@ def render(db, id_pac, paciente=None):
         if val == "Evaluación Inicial":
             tiene_evaluacion = True
             if max_sesion < 1:
-                max_sesion = 1  # La evaluación cuenta como la sesión 1
+                max_sesion = 1  
         elif val == "Sesión de Cierre":
             tiene_cierre = True
         elif val.startswith("Sesión "):
@@ -206,7 +226,7 @@ def render(db, id_pac, paciente=None):
     lista_sesiones.append("Otra (Especificar manualmente)")
 
     # ==========================================
-    # PANTALLA PRINCIPAL: FORMULARIO DE NOTA
+    # PANTALLAS PRINCIPALES DE ENTRADA
     # ==========================================
     if not st.session_state.conf_borrador_n and not st.session_state.conf_sello_n:
         
@@ -238,19 +258,45 @@ def render(db, id_pac, paciente=None):
                 
                 valor_guardado = datos_borrador.get("sesion_num", sesion_sugerida)
                 
-                sesion_sel = c_ses.selectbox("Número o Tipo de Sesión:", lista_sesiones, index=lista_sesiones.index(valor_guardado) if valor_guardado in lista_sesiones else 0)
-                
-                if sesion_sel == "Otra (Especificar manualmente)":
-                    sesion_final = c_ses.text_input("Escriba el nombre o número de la sesión:", placeholder="Ej. Sesión Familiar de Emergencia")
-                else:
-                    sesion_final = sesion_sel
+                # SI ES NOTA COMPLEMENTARIA
+                if tipo_nota == "NOTA COMPLEMENTARIA":
+                    st.info("📌 **La Nota Complementaria** sirve para hacer aclaraciones, adiciones o correcciones a una sesión previamente sellada. El documento original permanecerá inalterado.")
                     
-                payload["sesion_num"] = sesion_final
+                    if not notas_selladas:
+                        st.error("No hay notas selladas en este expediente para complementar.")
+                        sesion_final = ""
+                        payload["sesion_num"] = ""
+                        payload["nota_referencia"] = ""
+                    else:
+                        # Lista de sesiones previas para referenciar
+                        opciones_ref = [f"{n.get('fecha_sesion_str', '')} | {n.get('sesion_num', '')}" for n in sorted(notas_selladas, key=lambda x: x.get("fecha_sistema", ""), reverse=True) if n.get("tipo_nota") != "NOTA COMPLEMENTARIA"]
+                        
+                        if not opciones_ref:
+                            st.warning("Solo puedes complementar notas regulares, no otras notas complementarias.")
+                            sesion_final = ""
+                        else:
+                            ref_sel = c_ses.selectbox("¿A qué sesión deseas agregar información?", opciones_ref)
+                            # Generamos un ID único para que no choque con la sesión original
+                            sesion_final = f"Anexo de {ref_sel.split(' | ')[1]}"
+                            payload["sesion_num"] = sesion_final
+                            payload["nota_referencia"] = ref_sel
                 
-                if len(notas_selladas) == 0:
-                    c_ses.caption("*(No hay sesiones previas. Debe ser Evaluación Inicial)*")
-                elif max_sesion > 0:
-                    c_ses.caption(f"*(La Evaluación Inicial cuenta como Sesión 1. Última registrada: {max_sesion})*")
+                # SI ES NOTA NORMAL
+                else:
+                    sesion_sel = c_ses.selectbox("Número o Tipo de Sesión:", lista_sesiones, index=lista_sesiones.index(valor_guardado) if valor_guardado in lista_sesiones else 0)
+                    
+                    if sesion_sel == "Otra (Especificar manualmente)":
+                        sesion_final = c_ses.text_input("Escriba el nombre o número de la sesión:", placeholder="Ej. Sesión Familiar de Emergencia")
+                    else:
+                        sesion_final = sesion_sel
+                        
+                    payload["sesion_num"] = sesion_final
+                    
+                    if len(notas_selladas) == 0:
+                        c_ses.caption("*(No hay sesiones previas. Debe ser Evaluación Inicial)*")
+                    elif max_sesion > 0:
+                        c_ses.caption(f"*(La Evaluación Inicial cuenta como Sesión 1. Última registrada: {max_sesion})*")
+                
                 
                 fecha_str = datos_borrador.get("fecha_sesion_str", "")
                 try: 
@@ -258,11 +304,16 @@ def render(db, id_pac, paciente=None):
                 except: 
                     default_date = datetime.today().date()
                 
-                fecha_obj = c_fec.date_input("Fecha de la sesión:", value=default_date)
+                fecha_obj = c_fec.date_input("Fecha en que se añade la nota:" if tipo_nota == "NOTA COMPLEMENTARIA" else "Fecha de la sesión:", value=default_date)
                 payload["fecha_sesion_str"] = str(fecha_obj)
 
+                # --- CAMPOS COMPLEMENTARIA ---
+                if tipo_nota == "NOTA COMPLEMENTARIA":
+                    st.markdown("<h5 style='color: #8E44AD;'>✍️ Aclaración o Adición Clínica</h5>", unsafe_allow_html=True)
+                    payload["nc_texto"] = st.text_area("Describa la información que desea agregar al expediente:", value=datos_borrador.get("nc_texto", ""), height=200)
+
                 # --- CAMPOS S.O.A.P. ---
-                if tipo_nota == "NOTA S.O.A.P. (Psicología)":
+                elif tipo_nota == "NOTA S.O.A.P. (Psicología)":
                     st.info("💡 **Redacción Libre:** Escribe todo tu reporte en los cuadros. Tienen altura adaptativa para textos largos.")
                     
                     st.markdown("<h5 style='color: #164032; margin-bottom: 0px;'>🗣️ S — Subjetivo</h5>", unsafe_allow_html=True)
@@ -390,11 +441,11 @@ def render(db, id_pac, paciente=None):
             if btn_firmar:
                 sesion_evaluar = payload["sesion_num"].strip()
                 
-                # Candado Anti-Duplicados
-                if sesion_evaluar in sesiones_usadas:
+                # Candado Anti-Duplicados (No aplica a complementarias)
+                if tipo_nota != "NOTA COMPLEMENTARIA" and sesion_evaluar in sesiones_usadas:
                     st.error(f"🚨 **Sesión Duplicada:** Ya existe una nota sellada para '{sesion_evaluar}'. Por favor, modifique el nombre o número de la sesión.")
                 elif sesion_evaluar == "":
-                    st.error("🚨 Debe ingresar un identificador válido para la sesión.")
+                    st.error("🚨 Debe seleccionar una sesión válida o ingresar un identificador.")
                 else:
                     campos_faltantes = [k.replace("_", " ").title() for k, v in payload.items() if str(v).strip() == ""]
                     if campos_faltantes:
@@ -424,7 +475,7 @@ def render(db, id_pac, paciente=None):
             st.rerun()
 
     elif st.session_state.conf_sello_n:
-        st.error("🚨 **ADVERTENCIA LEGAL:** Estás a punto de **SELLAR DEFINITIVAMENTE** esta Nota Clínica. \n\nEsta acción es **IRREVERSIBLE** y el documento quedará anexado al historial del paciente sin posibilidad de modificación futura. ¿Confirmas que los datos son correctos?")
+        st.error("🚨 **ADVERTENCIA LEGAL:** Estás a punto de **SELLAR DEFINITIVAMENTE** esta Nota. \n\nEsta acción es **IRREVERSIBLE** y el documento quedará anexado al historial del paciente sin posibilidad de modificación futura. ¿Confirmas que los datos son correctos?")
         c1, c2 = st.columns(2)
         if c1.button("🔐 SÍ, ESTOY SEGURO, FIRMAR Y SELLAR", type="primary", use_container_width=True):
             payload_final = st.session_state.tmp_nota
@@ -465,8 +516,14 @@ def render(db, id_pac, paciente=None):
             sesion = n.get("sesion_num", "S/N")
             fecha = n.get("fecha_sesion_str", n.get("fecha_sistema", "")[:10])
             autor = n.get("autor", "Especialista")
+            
+            # Etiqueta visual especial si es nota complementaria
+            if tipo == "NOTA COMPLEMENTARIA":
+                header_expander = f"📌 {fecha} | {sesion} | 👨‍⚕️ {autor}"
+            else:
+                header_expander = f"📅 {fecha} | {sesion} | {tipo} | 👨‍⚕️ {autor}"
 
-            with st.expander(f"📅 {fecha} | {sesion} | {tipo} | 👨‍⚕️ {autor}"):
+            with st.expander(header_expander):
                 c_head1, c_head2 = st.columns([3, 1])
                 c_head1.caption(f"Sellada en sistema el: {n.get('fecha_sistema', '')}")
                 
