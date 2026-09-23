@@ -14,57 +14,60 @@ def render_expedientes(db, rol, user_id):
     st.write("")
     
     # ==========================================
-    # 1. SELECCIÓN DE PACIENTE (CON FILTRO PARA ADMINS)
+    # 1. OBTENER PACIENTES SEGÚN ROL
     # ==========================================
     docs_pacientes = db.collection("pacientes").where("status", "==", "ACTIVO").get()
     lista_pacientes_cruda = []
     
     for doc in docs_pacientes:
         p = doc.to_dict()
-        if rol == "ESPECIALISTA":
-            # Si es especialista, solo ve a los suyos
+        if rol in ["DIRECTOR", "RECEPCIONISTA"]:
+            # Admins ven todo
+            lista_pacientes_cruda.append(p)
+        else:
+            # Especialistas ven solo lo suyo
             if user_id in p.get("med", ""):
                 lista_pacientes_cruda.append(p)
-        else:
-            # Si es admin o recepcionista, los ve todos
-            lista_pacientes_cruda.append(p)
 
     if not lista_pacientes_cruda:
         st.warning("⚠️ No hay expedientes activos disponibles para tu perfil.")
         return
 
-    # Lógica de renderizado según el rol
-    if rol != "ESPECIALISTA":
-        # Interfaz de búsqueda a 2 columnas para Admins
+    # ==========================================
+    # 2. RENDERIZADO DEL BUSCADOR
+    # ==========================================
+    if rol in ["DIRECTOR", "RECEPCIONISTA"]:
+        # MODO ADMIN: 2 Columnas (Filtro Especialidad + Buscador Paciente)
         c_filtro, c_busca = st.columns([1, 2])
         
-        # Extraemos las especialidades únicas de los pacientes registrados
+        # Extraemos las especialidades únicas de la base de datos
         especialidades = sorted(list(set([p.get("esp", "Sin Especialidad") for p in lista_pacientes_cruda])))
         
         with c_filtro:
-            filtro_esp = st.selectbox("🎯 Filtrar por Especialidad:", ["Todas"] + especialidades)
+            filtro_esp = st.selectbox("🎯 Filtrar por Especialidad:", ["Todas las Especialidades"] + especialidades)
             
-        # Aplicamos el filtro si el admin seleccionó una especialidad
-        if filtro_esp != "Todas":
+        # Filtramos internamente
+        if filtro_esp != "Todas las Especialidades":
             lista_pacientes_filtrada = [p for p in lista_pacientes_cruda if p.get("esp", "Sin Especialidad") == filtro_esp]
         else:
             lista_pacientes_filtrada = lista_pacientes_cruda
             
         with c_busca:
             nombres_pac = {f"{p['nombre']} (Folio: {p['id_p']})": p for p in lista_pacientes_filtrada}
-            pac_sel = st.selectbox("🔍 Buscar y Seleccionar Expediente:", ["-- Seleccione un expediente --"] + list(nombres_pac.keys()), key="memoria_paciente")
+            if not nombres_pac:
+                st.info("No hay pacientes registrados bajo esta especialidad.")
+                return
+            pac_sel = st.selectbox("🔍 Buscar y Seleccionar Expediente:", ["-- Seleccione un expediente --"] + list(nombres_pac.keys()), key="buscador_admin")
             
     else:
-        # Interfaz normal de 1 columna para Especialistas (no necesitan el filtro)
+        # MODO ESPECIALISTA: 1 Columna (Solo Buscador)
         lista_pacientes_filtrada = lista_pacientes_cruda
         nombres_pac = {f"{p['nombre']} (Folio: {p['id_p']})": p for p in lista_pacientes_filtrada}
-        pac_sel = st.selectbox("🔍 Buscar y Seleccionar Expediente:", ["-- Seleccione un expediente --"] + list(nombres_pac.keys()), key="memoria_paciente")
+        pac_sel = st.selectbox("🔍 Buscar y Seleccionar Expediente:", ["-- Seleccione un expediente --"] + list(nombres_pac.keys()), key="buscador_esp")
 
-    # Validación por si el filtro deja la lista vacía
-    if not nombres_pac:
-        st.info("No hay pacientes registrados bajo esta especialidad.")
-        return
-
+    # ==========================================
+    # VALIDACIÓN DE SELECCIÓN
+    # ==========================================
     if pac_sel == "-- Seleccione un expediente --":
         st.info("Seleccione un paciente en el buscador superior para abrir su archivero clínico.")
         return
