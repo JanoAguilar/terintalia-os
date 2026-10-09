@@ -229,9 +229,9 @@ def login():
                         st.rerun()
                     elif usuario == "asistente.clinico@terintalia.com" and password == "Recep2026":
                         st.session_state.autenticado = True
-                        st.session_state.rol = "RECEPCIONISTA"
-                        st.session_state.nombre = "PERSONAL DE RECEPCIÓN"
-                        st.session_state.user_id = "RECEP"
+                        st.session_state.rol = "ASISTENTE CLÍNICO"
+                        st.session_state.nombre = "ASISTENTE CLÍNICO"
+                        st.session_state.user_id = "ASISTENTE"
                         st.rerun()
                     else:
                         query = db.collection("especialistas").where("correo_corporativo", "==", usuario).get()
@@ -264,6 +264,7 @@ else:
     
     with st.sidebar:
         mostrar_logo(ancho="160px")
+        rol_visual = "ASISTENTE CLÍNICO" if rol == "RECEPCIONISTA" else rol
         st.markdown(f"<div style='text-align:center; padding-bottom: 10px;'><b>{st.session_state.nombre}</b><br><small style='color:#3B82F6;'>{rol}</small></div>", unsafe_allow_html=True)
         
         st.markdown("### 📌 MENÚ PRINCIPAL")
