@@ -227,7 +227,7 @@ def login():
                         st.session_state.nombre = "DIRECTOR GENERAL"
                         st.session_state.user_id = "ADMIN"
                         st.rerun()
-                    elif usuario == "recepcion@terintalia.com" and password == "Recep2026":
+                    elif usuario == "asistente.clinico@terintalia.com" and password == "Recep2026":
                         st.session_state.autenticado = True
                         st.session_state.rol = "RECEPCIONISTA"
                         st.session_state.nombre = "PERSONAL DE RECEPCIÓN"
