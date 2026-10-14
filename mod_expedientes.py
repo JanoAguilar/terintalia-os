@@ -21,7 +21,7 @@ def render_expedientes(db, rol, user_id):
     
     for doc in docs_pacientes:
         p = doc.to_dict()
-        if rol in ["DIRECTOR", "RECEPCIONISTA"]:
+        if rol in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO"]:
             # Admins ven todo
             lista_pacientes_cruda.append(p)
         else:
