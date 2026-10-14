@@ -295,7 +295,7 @@ else:
         # --- INICIO DE LA MODIFICACIÓN ---
         todos_docs = db.collection("pacientes").get()
         
-        if rol in ["DIRECTOR", "RECEPCIONISTA"]:
+        if rol in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO"]:
             pacientes_docs = todos_docs
         else:
             # Filtro exacto que usa el Expediente Clínico (Busca por ID en el campo "med")
