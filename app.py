@@ -271,7 +271,7 @@ else:
         
         opciones_principales = ["📊 Dashboard (Inicio)"]
         
-        if rol in ["DIRECTOR", "RECEPCIONISTA"]:
+        if rol in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO"]:
             opciones_principales += ["📝 Alta de Pacientes", "👩‍⚕️ Alta de Especialistas"]
         
         opciones_principales.append("📂 Expediente Clínico")
