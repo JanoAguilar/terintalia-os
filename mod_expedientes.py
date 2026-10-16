@@ -2,7 +2,6 @@ import streamlit as st
 import os
 from google.cloud import firestore
 
-# Importamos las pestañas que crearemos en el paso 3
 import tab_legales
 import tab_historia
 import tab_notas
@@ -19,13 +18,15 @@ def render_expedientes(db, rol, user_id):
     docs_pacientes = db.collection("pacientes").where("status", "==", "ACTIVO").get()
     lista_pacientes_cruda = []
     
+    es_admin_o_asistente = rol in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO"]
+    
     for doc in docs_pacientes:
         p = doc.to_dict()
-        if rol in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO"]:
-            # Admins ven todo
+        if es_admin_o_asistente:
+            # Director y Asistente Clínico ven todos los pacientes
             lista_pacientes_cruda.append(p)
         else:
-            # Especialistas ven solo lo suyo
+            # Especialistas ven solo los asignados a su ID
             if user_id in p.get("med", ""):
                 lista_pacientes_cruda.append(p)
 
@@ -34,19 +35,17 @@ def render_expedientes(db, rol, user_id):
         return
 
     # ==========================================
-    # 2. RENDERIZADO DEL BUSCADOR
+    # 2. RENDERIZADO DEL BUSCADOR Y FILTRO
     # ==========================================
-    if rol in ["DIRECTOR", "RECEPCIONISTA"]:
-        # MODO ADMIN: 2 Columnas (Filtro Especialidad + Buscador Paciente)
+    if es_admin_o_asistente:
+        # MODO ADMIN / ASISTENTE CLÍNICO: 2 Columnas (Filtro Especialidad + Buscador Paciente)
         c_filtro, c_busca = st.columns([1, 2])
         
-        # Extraemos las especialidades únicas de la base de datos
         especialidades = sorted(list(set([p.get("esp", "Sin Especialidad") for p in lista_pacientes_cruda])))
         
         with c_filtro:
             filtro_esp = st.selectbox("🎯 Filtrar por Especialidad:", ["Todas las Especialidades"] + especialidades)
             
-        # Filtramos internamente
         if filtro_esp != "Todas las Especialidades":
             lista_pacientes_filtrada = [p for p in lista_pacientes_cruda if p.get("esp", "Sin Especialidad") == filtro_esp]
         else:
@@ -95,7 +94,6 @@ def render_expedientes(db, rol, user_id):
         "📎 Adjuntos"
     ])
 
-    # Le pasamos el control a cada archivo
     with tab1: tab_legales.render(db, paciente, id_pac, rol)
     with tab2: tab_historia.render(db, paciente, id_pac)
     with tab3: tab_notas.render(db, id_pac)
