@@ -40,35 +40,39 @@ def modal_visualizador_b64(datos_b64, tipo_archivo, descripcion):
 def render(db, id_pac):
     st.markdown("<h4 style='color: #164032; font-size: 16px;'>Expediente Externo (Estudios, Recetas, Derivaciones)</h4>", unsafe_allow_html=True)
     
-    with st.form("form_adjunto", clear_on_submit=True):
-        archivo = st.file_uploader("📎 Subir Archivo (Límite: 10 MB)", type=["pdf", "jpg", "jpeg", "png"])
-        descripcion = st.text_input("Breve descripción (Ej. Examen de sangre Q.S. 6 elementos)").upper()
-        
-        if st.form_submit_button("💾 SUBIR ADJUNTO", type="primary", use_container_width=True):
-            if archivo and descripcion:
-                if archivo.size > 10 * 1024 * 1024:
-                    st.error("🚨 ARCHIVO MUY PESADO: El límite actual es de 10 MB.")
-                else:
-                    with st.spinner("Subiendo al disco duro de Firebase Storage..."):
-                        bucket = storage.bucket()
-                        ruta_blob = f"expedientes/{id_pac}/{int(time.time())}_{archivo.name}"
-                        blob = bucket.blob(ruta_blob)
-                        blob.upload_from_string(archivo.getvalue(), content_type=archivo.type)
+    # --- CANDADO DE SEGURIDAD PARA SUBIR ARCHIVOS ---
+    if st.session_state.get("rol", "") in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO"]:
+        with st.form("form_adjunto", clear_on_submit=True):
+            archivo = st.file_uploader("📎 Subir Archivo (Límite: 10 MB)", type=["pdf", "jpg", "jpeg", "png"])
+            descripcion = st.text_input("Breve descripción (Ej. Examen de sangre Q.S. 6 elementos)").upper()
+            
+            if st.form_submit_button("💾 SUBIR ADJUNTO", type="primary", use_container_width=True):
+                if archivo and descripcion:
+                    if archivo.size > 10 * 1024 * 1024:
+                        st.error("🚨 ARCHIVO MUY PESADO: El límite actual es de 10 MB.")
+                    else:
+                        with st.spinner("Subiendo al disco duro de Firebase Storage..."):
+                            bucket = storage.bucket()
+                            ruta_blob = f"expedientes/{id_pac}/{int(time.time())}_{archivo.name}"
+                            blob = bucket.blob(ruta_blob)
+                            blob.upload_from_string(archivo.getvalue(), content_type=archivo.type)
+                            
+                            db.collection("pacientes").document(id_pac).collection("adjuntos").add({
+                                "descripcion": descripcion,
+                                "archivo": archivo.name,
+                                "tipo": archivo.type,
+                                "storage_path": ruta_blob,
+                                "subido_por": st.session_state.get("nombre", "Especialista"),
+                                "fecha": datetime.now().strftime("%d/%m/%Y %H:%M")
+                            })
                         
-                        db.collection("pacientes").document(id_pac).collection("adjuntos").add({
-                            "descripcion": descripcion,
-                            "archivo": archivo.name,
-                            "tipo": archivo.type,
-                            "storage_path": ruta_blob,
-                            "subido_por": st.session_state.get("nombre", "Especialista"),
-                            "fecha": datetime.now().strftime("%d/%m/%Y %H:%M")
-                        })
-                    
-                    st.toast("✅ ¡Documento guardado exitosamente!", icon="🎉")
-                    time.sleep(1.5)
-                    st.rerun()
-            else:
-                st.error("⚠️ Por favor, suba un archivo y agregue una descripción.")
+                        st.toast("✅ ¡Documento guardado exitosamente!", icon="🎉")
+                        time.sleep(1.5)
+                        st.rerun()
+                else:
+                    st.error("⚠️ Por favor, suba un archivo y agregue una descripción.")
+    else:
+        st.info("⚠️ Solo el área de Administración y Asistentes Clínicos tiene permisos para adjuntar nuevos documentos a este expediente.")
 
     st.markdown("---")
     adjuntos = db.collection("pacientes").document(id_pac).collection("adjuntos").order_by("fecha", direction="DESCENDING").get()
