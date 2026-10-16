@@ -40,8 +40,8 @@ def modal_visualizador_b64(datos_b64, tipo_archivo, descripcion):
 def render(db, id_pac):
     st.markdown("<h4 style='color: #164032; font-size: 16px;'>Expediente Externo (Estudios, Recetas, Derivaciones)</h4>", unsafe_allow_html=True)
     
-    # --- CANDADO DE SEGURIDAD PARA SUBIR ARCHIVOS ---
-    if st.session_state.get("rol", "") in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO"]:
+    # --- CANDADO DE SEGURIDAD PARA SUBIR ARCHIVOS (TODOS LOS ROLES AUTORIZADOS) ---
+    if st.session_state.get("rol", "") in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO", "ESPECIALISTA"]:
         with st.form("form_adjunto", clear_on_submit=True):
             archivo = st.file_uploader("📎 Subir Archivo (Límite: 10 MB)", type=["pdf", "jpg", "jpeg", "png"])
             descripcion = st.text_input("Breve descripción (Ej. Examen de sangre Q.S. 6 elementos)").upper()
@@ -71,8 +71,6 @@ def render(db, id_pac):
                         st.rerun()
                 else:
                     st.error("⚠️ Por favor, suba un archivo y agregue una descripción.")
-    else:
-        st.info("⚠️ Solo el área de Administración y Asistentes Clínicos tiene permisos para adjuntar nuevos documentos a este expediente.")
 
     st.markdown("---")
     adjuntos = db.collection("pacientes").document(id_pac).collection("adjuntos").order_by("fecha", direction="DESCENDING").get()
@@ -103,7 +101,6 @@ def render(db, id_pac):
                         # --- COLUMNA DE VISUALIZACIÓN ---
                         with col_vis:
                             if "pdf" in tipo_archivo:
-                                # HTML Link para saltar el bloqueo de Streamlit en PDFs
                                 btn_pdf = f'''
                                 <a href="{url_segura}" target="_blank" style="
                                     display: block; text-align: center; background-color: #FFFFFF; 
@@ -114,13 +111,11 @@ def render(db, id_pac):
                                 '''
                                 st.markdown(btn_pdf, unsafe_allow_html=True)
                             else:
-                                # Botón normal de Streamlit para imágenes (abre Modal)
                                 if st.button("👁️ Visualizar", key=f"vis_{doc_id}", use_container_width=True):
                                     modal_visualizador_url(url_segura, tipo_archivo, a.get("descripcion", ""))
                         
                         # --- COLUMNA DE DESCARGA ---
                         with col_desc:
-                            # Botón HTML para descargar directamente desde Firebase
                             btn_descarga = f'''
                             <a href="{url_segura}" target="_blank" download style="
                                 display: block; text-align: center; background-color: #FFFFFF; 
