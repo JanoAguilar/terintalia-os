@@ -73,7 +73,7 @@ st.markdown("""
 
     /* 5. BOTONES PRIMARIOS (Acciones Principales) - AZUL SÓLIDO */
     button[kind="primary"] {
-        background-color: #1E3A8A !important; /* Azul Marino Sólido */
+        background-color: #1E3A8A !important;
         border: none !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
@@ -82,7 +82,7 @@ st.markdown("""
         transition: all 0.3s ease !important;
     }
     button[kind="primary"]:hover {
-        background-color: #1E40AF !important; /* Azul ligeramente más claro al pasar el mouse */
+        background-color: #1E40AF !important;
         transform: scale(1.02);
         box-shadow: 0 4px 10px rgba(30, 58, 138, 0.3) !important;
     }
@@ -105,7 +105,7 @@ st.markdown("""
 
     /* 7. BOTÓN DE CERRAR SESIÓN EN EL SIDEBAR - AZUL BRILLANTE SÓLIDO */
     [data-testid="stSidebar"] .stButton > button {
-        background-color: #2563EB !important; /* Azul Brillante Sólido */
+        background-color: #2563EB !important;
         color: white !important;
         border: none !important;
         border-radius: 8px !important;
@@ -113,7 +113,7 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
     }
     [data-testid="stSidebar"] .stButton > button:hover {
-        background-color: #1D4ED8 !important; /* Azul más oscuro al hover */
+        background-color: #1D4ED8 !important;
         transform: translateY(-1px);
         color: white !important;
     }
@@ -144,15 +144,11 @@ st.markdown("""
 
 # --- LÓGICA DE LOGIN (PANTALLA DE ACCESO PREMIUM) ---
 def login():
-    # CSS EXCLUSIVO PARA EL LOGIN 
     st.markdown("""
         <style>
-        /* Fondo ligeramente gris/azulado para resaltar la tarjeta */
         .stApp {
             background: radial-gradient(circle at center, #F8FAFC 0%, #E2E8F0 100%);
         }
-        
-        /* Sombra de la tarjeta (Efecto 3D flotante) */
         [data-testid="stVerticalBlockBorderWrapper"] {
             border-radius: 16px !important;
             border: 1px solid #FFFFFF !important;
@@ -160,8 +156,6 @@ def login():
             background: #FFFFFF !important;
             padding: 10px !important;
         }
-
-        /* Cajas de texto del login */
         [data-testid="stTextInput"] input {
             background-color: #F1F5F9 !important; 
             border: 1px solid #CBD5E1 !important;
@@ -171,21 +165,17 @@ def login():
             color: #0F172A !important;
             font-weight: 500 !important;
         }
-        
-        /* Efecto al dar clic en la caja de texto */
         [data-testid="stTextInput"] input:focus {
             background-color: #FFFFFF !important;
             border-color: #2563EB !important;
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15) !important; 
         }
-
-        /* Botón de Ingresar sólido e imponente */
         .stFormSubmitButton button {
             border-radius: 10px !important;
             padding: 6px 0px !important;
             font-size: 16px !important;
             letter-spacing: 1px;
-            background-color: #1E3A8A !important; /* Azul sólido oscuro, sin degradado */
+            background-color: #1E3A8A !important;
             box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.2) !important;
             border: none !important;
             color: white !important;
@@ -193,7 +183,7 @@ def login():
             transition: all 0.3s ease !important;
         }
         .stFormSubmitButton button:hover {
-            background-color: #1E40AF !important; /* Brillo sólido al hover */
+            background-color: #1E40AF !important;
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(30, 58, 138, 0.3) !important;
         }
@@ -213,7 +203,7 @@ def login():
             with st.form("form_login", clear_on_submit=False):
                 st.markdown("<p style='text-align: center; color: #64748B; margin-bottom: 25px; font-weight: 500;'>Acceso Seguro al Sistema Clínico</p>", unsafe_allow_html=True)
                 
-                usuario = st.text_input("CORREO CORPORATIVO").lower()
+                usuario = st.text_input("CORREO CORPORATIVO").lower().strip()
                 password = st.text_input("CONTRASEÑA", type="password")
                 
                 st.write("") 
@@ -227,9 +217,10 @@ def login():
                         st.session_state.nombre = "DIRECTOR GENERAL"
                         st.session_state.user_id = "ADMIN"
                         st.rerun()
-                    elif usuario == "asistente.clinico@terintalia.com" and password == "Recep2026":
+                    elif usuario in ["asistente.clinico@terintalia.com", "recepcion@terintalia.com"] and password == "Recep2026":
                         st.session_state.autenticado = True
-                        st.session_state.rol = "ASISTENTE CLÍNICO"
+                        # Mantenemos RECEPCIONISTA en backend para compatibilidad total con todos los módulos
+                        st.session_state.rol = "RECEPCIONISTA"
                         st.session_state.nombre = "ASISTENTE CLÍNICO"
                         st.session_state.user_id = "ASISTENTE"
                         st.rerun()
@@ -238,7 +229,7 @@ def login():
                         if query:
                             user_doc = query[0].to_dict()
                             
-                            # --- NUEVA VALIDACIÓN: BLOQUEAR SI ESTÁ INACTIVO ---
+                            # --- VALIDACIÓN: BLOQUEAR SI ESTÁ INACTIVO ---
                             if user_doc.get("estatus", "ACTIVO").upper() == "INACTIVO":
                                 st.error("🚫 Acceso denegado: Usuario revocado o inactivo. Contacte al administrador.")
                             elif user_doc.get("password") == password:
@@ -259,13 +250,13 @@ if "autenticado" not in st.session_state:
 if not st.session_state.autenticado:
     login()
 else:
-   # --- MENÚ LATERAL ESTRUCTURADO ---
+    # --- MENÚ LATERAL ESTRUCTURADO ---
     rol = st.session_state.rol
+    rol_visual = "ASISTENTE CLÍNICO" if rol in ["RECEPCIONISTA", "ASISTENTE CLÍNICO"] else rol
     
     with st.sidebar:
         mostrar_logo(ancho="160px")
-        rol_visual = "ASISTENTE CLÍNICO" if rol == "RECEPCIONISTA" else rol
-        st.markdown(f"<div style='text-align:center; padding-bottom: 10px;'><b>{st.session_state.nombre}</b><br><small style='color:#3B82F6;'>{rol}</small></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center; padding-bottom: 10px;'><b>{st.session_state.nombre}</b><br><small style='color:#3B82F6;'>{rol_visual}</small></div>", unsafe_allow_html=True)
         
         st.markdown("### 📌 MENÚ PRINCIPAL")
         
@@ -292,18 +283,15 @@ else:
         st.title("📊 Resumen de la Clínica")
         st.write("Visión general del estado actual de Terintalia. *(Solo lectura)*")
         
-        # --- INICIO DE LA MODIFICACIÓN ---
         todos_docs = db.collection("pacientes").get()
         
         if rol in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO"]:
             pacientes_docs = todos_docs
         else:
-            # Filtro exacto que usa el Expediente Clínico (Busca por ID en el campo "med")
             pacientes_docs = []
             for doc in todos_docs:
                 if st.session_state.user_id in doc.to_dict().get("med", ""):
                     pacientes_docs.append(doc)
-        # --- FIN DE LA MODIFICACIÓN ---
 
         total_pac = len(pacientes_docs)
         pac_activos = sum(1 for p in pacientes_docs if p.to_dict().get("status") == "ACTIVO")
