@@ -46,6 +46,22 @@ st.markdown("""
         font-family: 'Material Symbols Rounded' !important;
     }
 
+    /* SCROLLBARS ESTILIZADAS TIPO MACOS/SAAS */
+    ::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #F1F5F9;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #CBD5E1;
+        border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #94A3B8;
+    }
+
     /* OCULTAR ELEMENTOS NATIVOS DE STREAMLIT PARA ASPECTO DE WEB APP */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -98,7 +114,6 @@ st.markdown("""
         cursor: pointer !important;
         width: 100% !important;
     }
-    /* Ocultar el círculo tradicional del radio en el sidebar */
     [data-testid="stSidebar"] [data-baseweb="radio"] > div:first-child {
         display: none !important;
     }
@@ -388,14 +403,12 @@ else:
     rol = st.session_state.rol
     rol_visual = "ASISTENTE CLÍNICO" if rol in ["RECEPCIONISTA", "ASISTENTE CLÍNICO"] else rol
     
-    # Iniciales para el avatar del usuario
     partes_nombre = st.session_state.nombre.split()
     iniciales_user = "".join([p[0] for p in partes_nombre[:2]]).upper() if partes_nombre else "TR"
     
     with st.sidebar:
         mostrar_logo(ancho="150px")
         
-        # Tarjeta de Perfil Estilo Cristal Oscuro en Sidebar
         st.markdown(f"""
             <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; margin: 8px 0 20px 0; display: flex; align-items: center; gap: 12px;">
                 <div style="width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 15px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(37,99,235,0.3);">
@@ -428,7 +441,9 @@ else:
             st.session_state.clear()
             st.rerun()
 
-    # --- RUTEO DE PANTALLAS ---
+    # =========================================================
+    # RUTEO DE PANTALLAS: DASHBOARD ANALÍTICO EJECUTIVO
+    # =========================================================
     if opcion == "📊 Dashboard (Inicio)":
         hoy_str = datetime.now().strftime("%d / %m / %Y")
         
@@ -438,7 +453,7 @@ else:
                 <div>
                     <span style="background: rgba(255,255,255,0.12); color: #93C5FD; font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px; letter-spacing: 0.6px;">📅 FECHA DEL SISTEMA: {hoy_str}</span>
                     <h2 style="color: #FFFFFF !important; margin: 12px 0 4px 0; font-size: 28px; font-weight: 800;">Panel de Control Clínico</h2>
-                    <p style="color: #CBD5E1 !important; margin: 0; font-size: 14.5px;">Bienvenido, <b>{st.session_state.nombre}</b>. Monitoreo en tiempo real del padrón de pacientes.</p>
+                    <p style="color: #CBD5E1 !important; margin: 0; font-size: 14.5px;">Bienvenido, <b>{st.session_state.nombre}</b>. Monitoreo en tiempo real del padrón y áreas de especialidad.</p>
                 </div>
                 <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 12px 20px; text-align: right;">
                     <div style="font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.8px;">Nivel de Acceso</div>
@@ -457,11 +472,13 @@ else:
                 if st.session_state.user_id in doc.to_dict().get("med", ""):
                     pacientes_docs.append(doc)
 
-        total_pac = len(pacientes_docs)
-        pac_activos = sum(1 for p in pacientes_docs if p.to_dict().get("status") == "ACTIVO")
+        lista_pac_data = [p.to_dict() for p in pacientes_docs]
+        total_pac = len(lista_pac_data)
+        pac_activos = sum(1 for p in lista_pac_data if p.get("status") == "ACTIVO")
         pac_inactivos = total_pac - pac_activos
         porcentaje_activo = int((pac_activos / total_pac) * 100) if total_pac > 0 else 0
         
+        # --- FILA 1: TARJETAS KPI PRINCIPALES ---
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown(f"""
@@ -498,16 +515,114 @@ else:
             """, unsafe_allow_html=True)
                 
         st.write("")
+
+        # --- FILA 2: ANALÍTICA VISUAL (DISTRIBUCIÓN Y ÚLTIMOS INGRESOS) ---
+        col_ana1, col_ana2 = st.columns([1.15, 1])
+
+        with col_ana1:
+            with st.container(border=True):
+                st.markdown("""
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                        <div>
+                            <div style="font-size:16px; font-weight:800; color:#0F172A; font-family:'Plus Jakarta Sans',sans-serif;">📊 Distribución por Especialidad y Modalidad</div>
+                            <div style="font-size:12.5px; color:#64748B;">Carga clínica activa segmentada por área de atención</div>
+                        </div>
+                        <span style="background:#EFF6FF; color:#1D4ED8; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;">Tiempo Real</span>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                if total_pac == 0:
+                    st.info("Aún no hay pacientes registrados para generar métricas por especialidad.")
+                else:
+                    # Conteo por especialidad
+                    conteo_esp = {}
+                    conteo_mod = {"Presencial": 0, "Online": 0, "Híbrido": 0}
+                    for p in lista_pac_data:
+                        esp_nom = p.get("esp", "OTRA").upper()
+                        conteo_esp[esp_nom] = conteo_esp.get(esp_nom, 0) + 1
+                        mod_nom = p.get("modalidad", "N/A")
+                        if mod_nom in conteo_mod:
+                            conteo_mod[mod_nom] += 1
+
+                    colores_barras = ["#2563EB", "#10B981", "#8B5CF6", "#F59E0B", "#EC4899"]
+                    html_barras = ""
+                    for idx, (esp_k, cant) in enumerate(sorted(conteo_esp.items(), key=lambda x: x[1], reverse=True)):
+                        pct = int((cant / total_pac) * 100)
+                        color_b = colores_barras[idx % len(colores_barras)]
+                        html_barras += f"""
+                        <div style="margin-bottom: 14px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:#1E293B; margin-bottom:5px;">
+                                <span>{esp_k}</span>
+                                <span style="color:#64748B;"><b>{cant}</b> pac. ({pct}%)</span>
+                            </div>
+                            <div style="width:100%; background:#F1F5F9; height:9px; border-radius:999px; overflow:hidden;">
+                                <div style="width:{max(pct, 4)}%; background:{color_b}; height:100%; border-radius:999px;"></div>
+                            </div>
+                        </div>
+                        """
+                    st.markdown(html_barras, unsafe_allow_html=True)
+
+                    # Mini-píldoras de Modalidad
+                    st.markdown(f"""
+                        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #F1F5F9; display: flex; gap: 10px; flex-wrap: wrap;">
+                            <div style="flex:1; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:8px 12px; text-align:center;">
+                                <div style="font-size:11px; color:#64748B; font-weight:600;">🏢 PRESENCIAL</div>
+                                <div style="font-size:16px; font-weight:800; color:#0F172A; margin-top:2px;">{conteo_mod['Presencial']}</div>
+                            </div>
+                            <div style="flex:1; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:8px 12px; text-align:center;">
+                                <div style="font-size:11px; color:#64748B; font-weight:600;">💻 ONLINE</div>
+                                <div style="font-size:16px; font-weight:800; color:#0F172A; margin-top:2px;">{conteo_mod['Online']}</div>
+                            </div>
+                            <div style="flex:1; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:8px 12px; text-align:center;">
+                                <div style="font-size:11px; color:#64748B; font-weight:600;">🔄 HÍBRIDO</div>
+                                <div style="font-size:16px; font-weight:800; color:#0F172A; margin-top:2px;">{conteo_mod['Híbrido']}</div>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+        with col_ana2:
+            with st.container(border=True):
+                st.markdown("""
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                        <div>
+                            <div style="font-size:16px; font-weight:800; color:#0F172A; font-family:'Plus Jakarta Sans',sans-serif;">🆕 Últimos Expedientes Aperturados</div>
+                            <div style="font-size:12.5px; color:#64748B;">Registros más recientes ingresados a la plataforma</div>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                if total_pac == 0:
+                    st.info("No hay expedientes recientes para mostrar.")
+                else:
+                    # Ordenar pacientes recientes
+                    pac_recientes = lista_pac_data[-4:][::-1]
+                    html_feed = ""
+                    for pr in pac_recientes:
+                        nom_pr = pr.get("nombre", "Paciente")
+                        id_pr = pr.get("id_p", "S/F")
+                        esp_pr = pr.get("esp", "Clínica")
+                        ini_pr = pr.get("fecha_inicio_tratamiento", pr.get("fecha_registro", "Reciente"))
+                        html_feed += f"""
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:12px; background:#F8FAFC; border:1px solid #E2E8F0; margin-bottom:8px;">
+                            <div style="overflow:hidden; padding-right:8px;">
+                                <div style="font-size:13.5px; font-weight:700; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{nom_pr}</div>
+                                <div style="font-size:11.5px; color:#64748B;">{esp_pr} • Inicio: {ini_pr}</div>
+                            </div>
+                            <span style="background:#FFF7ED; color:#EA580C; border:1px solid #FED7AA; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; flex-shrink:0;">{id_pr}</span>
+                        </div>
+                        """
+                    st.markdown(html_feed, unsafe_allow_html=True)
+
         st.markdown("""
-            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 20px 24px; margin-top: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 18px 24px; margin-top: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
                 <div style="display: flex; align-items: center; gap: 14px;">
-                    <div style="background: #FEF3C7; color: #D97706; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;">💡</div>
+                    <div style="background: #FEF3C7; color: #D97706; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;">💡</div>
                     <div>
-                        <div style="font-weight: 700; color: #0F172A; font-size: 14.5px;">Acceso Rápido al Archivero Digital</div>
-                        <div style="color: #64748B; font-size: 13px;">Selecciona un módulo en el menú izquierdo para consultar historias clínicas, sellar notas de evolución o subir adjuntos.</div>
+                        <div style="font-weight: 700; color: #0F172A; font-size: 14px;">Navegación Rápida de Expedientes</div>
+                        <div style="color: #64748B; font-size: 12.5px;">Dirígete a <b>Expediente Clínico</b> en el menú lateral para visualizar el nuevo Semáforo de Cumplimiento Legal de cada paciente.</div>
                     </div>
                 </div>
-                <span style="background: #F1F5F9; color: #475569; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px;">NOM-004-SSA3-2012 Ready</span>
+                <span style="background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; font-size: 11.5px; font-weight: 700; padding: 5px 12px; border-radius: 999px;">✓ NOM-004-SSA3-2012 Activo</span>
             </div>
         """, unsafe_allow_html=True)
 
