@@ -1,5 +1,6 @@
 import streamlit as st
 import base64
+from datetime import datetime
 from conexion import conectar_db
 import mod_especialistas, mod_pacientes, mod_expedientes
 
@@ -12,132 +13,274 @@ def get_base64(file_path):
     try:
         with open(file_path, "rb") as f:
             return base64.b64encode(f.read()).decode()
-    except: return None
+    except:
+        return None
 
 def mostrar_logo(ancho="200px"):
     bin_str = get_base64("logo.png")
     if bin_str:
         st.markdown(f'''
-            <div style="display: flex; justify-content: center; padding: 10px 0;">
+            <div style="display: flex; justify-content: center; padding: 12px 0;">
                 <img src="data:image/png;base64,{bin_str}" draggable="false" 
-                     style="max-width: {ancho}; height: auto; object-fit: contain;">
+                     style="max-width: {ancho}; height: auto; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.05));">
             </div>''', unsafe_allow_html=True)
-    else: st.markdown("<h3 style='text-align:center; color:#1E3A8A;'>🏥 TERINTALIA</h3>", unsafe_allow_html=True)
+    else:
+        st.markdown("<h3 style='text-align:center; color:#1E3A8A; font-weight:800; letter-spacing:-0.5px;'>🏥 TERINTALIA OS</h3>", unsafe_allow_html=True)
 
-# --- CSS: REDISEÑO PREMIUM (AZUL CORPORATIVO Y CONTRASTES) ---
+# =========================================================
+# MOTOR GRÁFICO CSS: DISEÑO ULTRA-PREMIUM SAAS MÉDICO
+# =========================================================
 st.markdown("""
     <style>
-    /* 1. FUENTE MODERNA */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    /* 1. TIPOGRAFÍA MODERNA DUAL */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
     
-    html, body, p, span, h1, h2, h3, label, div {
-        font-family: 'Inter', sans-serif;
+    html, body, p, span, label, div {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    
+    h1, h2, h3, h4, h5 {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        letter-spacing: -0.02em;
+    }
     .stIconMaterial, .material-symbols-rounded, [data-testid="stIconMaterial"] {
         font-family: 'Material Symbols Rounded' !important;
     }
 
-    /* 2. FONDO PRINCIPAL (Gris ultra claro) */
+    /* OCULTAR ELEMENTOS NATIVOS DE STREAMLIT PARA ASPECTO DE WEB APP */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {background: transparent !important;}
+
+    /* 2. FONDO PRINCIPAL CON LUZ AMBIENTAL SUTIL */
     .stApp {
-        background-color: #F8FAFC; 
+        background-color: #F4F7FB;
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0px, transparent 45%),
+            radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 45%);
     }
 
-    /* 3. SIDEBAR (Menú Lateral) - AZUL MEDIANOCHE ELEGANTE */
+    /* ANIMACIÓN SUAVE AL CARGAR CONTENIDO */
+    .main .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 3rem !important;
+        animation: fadeInPage 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeInPage {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 3. SIDEBAR (MENÚ LATERAL) - ESTILO NAVEGACIÓN APP MODERNA */
     [data-testid="stSidebar"] {
-        background-color: #0F172A !important;
-        border-right: 1px solid #1E293B !important;
+        background: linear-gradient(180deg, #0B1120 0%, #0F172A 60%, #131F38 100%) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12) !important;
     }
     [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
-        color: #CBD5E1 !important;
+        color: #94A3B8 !important;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] b {
-        color: #FFFFFF !important;
-    }
-    [data-testid="stSidebar"] [data-baseweb="radio"] div {
-        color: #FFFFFF !important;
+        color: #F8FAFC !important;
     }
 
-    /* 4. TARJETAS / CONTENEDORES CON EFECTO CRISTAL */
+    /* Transformar Radio Buttons del Sidebar en Botones de Menú Interactivos */
+    [data-testid="stSidebar"] [role="radiogroup"] {
+        gap: 6px !important;
+        padding-top: 4px;
+    }
+    [data-testid="stSidebar"] [data-baseweb="radio"] {
+        background-color: rgba(255, 255, 255, 0.02) !important;
+        border: 1px solid rgba(255, 255, 255, 0.04) !important;
+        border-radius: 10px !important;
+        padding: 10px 14px !important;
+        margin: 0 !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        cursor: pointer !important;
+        width: 100% !important;
+    }
+    /* Ocultar el círculo tradicional del radio en el sidebar */
+    [data-testid="stSidebar"] [data-baseweb="radio"] > div:first-child {
+        display: none !important;
+    }
+    [data-testid="stSidebar"] [data-baseweb="radio"]:hover {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+        border-color: rgba(255, 255, 255, 0.12) !important;
+        transform: translateX(4px);
+    }
+    [data-testid="stSidebar"] [data-baseweb="radio"]:has(input:checked) {
+        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
+        border-color: #3B82F6 !important;
+        box-shadow: 0 6px 16px -3px rgba(37, 99, 235, 0.45) !important;
+    }
+    [data-testid="stSidebar"] [data-baseweb="radio"]:has(input:checked) p,
+    [data-testid="stSidebar"] [data-baseweb="radio"]:has(input:checked) span,
+    [data-testid="stSidebar"] [data-baseweb="radio"]:has(input:checked) div {
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+    }
+
+    /* 4. TARJETAS / CONTENEDORES CON ELEVACIÓN DINÁMICA */
     [data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #ffffff;
-        border-radius: 12px !important;
+        background-color: #FFFFFF !important;
+        border-radius: 16px !important;
         border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
-        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02) !important;
+        padding: 18px !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
     [data-testid="stVerticalBlockBorderWrapper"]:hover {
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04) !important;
-        transform: translateY(-2px);
+        border-color: #CBD5E1 !important;
+        box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.03) !important;
     }
 
-    /* 5. BOTONES PRIMARIOS (Acciones Principales) - AZUL SÓLIDO */
-    button[kind="primary"] {
-        background-color: #1E3A8A !important;
+    /* 5. PESTAÑAS (TABS) ESTILO PÍLDORA FLOTANTE (SEGMENTED CONTROL) */
+    [data-baseweb="tab-list"] {
+        background-color: #E2E8F0 !important;
+        padding: 6px !important;
+        border-radius: 14px !important;
+        gap: 6px !important;
+        border-bottom: none !important;
+        margin-bottom: 18px !important;
+    }
+    [data-baseweb="tab"] {
+        border-radius: 10px !important;
+        padding: 10px 18px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        color: #475569 !important;
         border: none !important;
-        border-radius: 8px !important;
+        background-color: transparent !important;
+        transition: all 0.2s ease !important;
+    }
+    [data-baseweb="tab"]:hover {
+        color: #0F172A !important;
+        background-color: rgba(255, 255, 255, 0.5) !important;
+    }
+    [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #FFFFFF !important;
+        color: #1E3A8A !important;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08) !important;
+    }
+    [data-baseweb="tab-highlight"] {
+        display: none !important;
+    }
+
+    /* 6. ACORDEONES (EXPANDERS) MODERNOS */
+    [data-testid="stExpander"] {
+        background-color: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
+        overflow: hidden !important;
+        margin-bottom: 10px !important;
+        transition: all 0.2s ease !important;
+    }
+    [data-testid="stExpander"]:hover {
+        border-color: #CBD5E1 !important;
+        box-shadow: 0 6px 12px rgba(15, 23, 42, 0.05) !important;
+    }
+    [data-testid="stExpander"] details summary {
+        padding: 14px 18px !important;
+        background-color: #F8FAFC !important;
+        font-weight: 600 !important;
+        color: #1E293B !important;
+        border-bottom: 1px solid transparent;
+    }
+    [data-testid="stExpander"] details[open] summary {
+        background-color: #F1F5F9 !important;
+        border-bottom: 1px solid #E2E8F0 !important;
+        color: #1E3A8A !important;
+    }
+
+    /* 7. BOTONES PRIMARIOS Y SECUNDARIOS CON DEGRADADO Y MICRO-INTERACCIÓN */
+    button[kind="primary"] {
+        background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%) !important;
+        border: none !important;
+        border-radius: 10px !important;
         font-weight: 600 !important;
         letter-spacing: 0.3px;
         color: white !important;
-        transition: all 0.3s ease !important;
+        padding: 0.55rem 1.2rem !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22) !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
     button[kind="primary"]:hover {
-        background-color: #1E40AF !important;
-        transform: scale(1.02);
-        box-shadow: 0 4px 10px rgba(30, 58, 138, 0.3) !important;
+        background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.32) !important;
+    }
+    button[kind="primary"]:active {
+        transform: translateY(0px);
     }
 
-    /* 6. BOTONES SECUNDARIOS (Borradores, etc.) - BLANCOS CON BORDE */
     .stButton > button:not([kind="primary"]), .stFormSubmitButton > button:not([kind="primary"]) {
         background-color: #FFFFFF !important;
-        border: 1px solid #94A3B8 !important; 
+        border: 1px solid #CBD5E1 !important; 
         color: #334155 !important;
         font-weight: 600 !important;
-        border-radius: 8px !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        border-radius: 10px !important;
+        padding: 0.55rem 1.2rem !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
         transition: all 0.2s ease !important;
     }
     .stButton > button:not([kind="primary"]):hover, .stFormSubmitButton > button:not([kind="primary"]):hover {
         border-color: #3B82F6 !important; 
         color: #1E3A8A !important;
         background-color: #F8FAFC !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(59, 130, 246, 0.1) !important;
     }
 
-    /* 7. BOTÓN DE CERRAR SESIÓN EN EL SIDEBAR - AZUL BRILLANTE SÓLIDO */
+    /* BOTÓN DE CERRAR SESIÓN EN EL SIDEBAR */
     [data-testid="stSidebar"] .stButton > button {
-        background-color: #2563EB !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 8px !important;
+        background: rgba(239, 68, 68, 0.12) !important;
+        color: #FCA5A5 !important;
+        border: 1px solid rgba(239, 68, 68, 0.25) !important;
+        border-radius: 10px !important;
         font-weight: 600 !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        transition: all 0.2s ease !important;
     }
     [data-testid="stSidebar"] .stButton > button:hover {
-        background-color: #1D4ED8 !important;
+        background: #EF4444 !important;
+        border-color: #EF4444 !important;
+        color: #FFFFFF !important;
         transform: translateY(-1px);
-        color: white !important;
+        box-shadow: 0 6px 14px rgba(239, 68, 68, 0.35) !important;
     }
 
-    /* 8. ENTRADAS DE TEXTO Y ÁREAS DE TEXTO */
+    /* 8. ENTRADAS DE TEXTO, SELECTORES Y ÁREAS DE TEXTO */
     input, div[data-baseweb="select"] > div, textarea {
-        background-color: #FFFFFF !important; 
-        border: 1px solid #94A3B8 !important; 
-        border-radius: 8px !important;
-        color: #1E293B !important; 
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06) !important; 
+        background-color: #F8FAFC !important; 
+        border: 1px solid #CBD5E1 !important; 
+        border-radius: 10px !important;
+        color: #0F172A !important; 
+        transition: all 0.2s ease !important;
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03) !important; 
+    }
+    input:hover, textarea:hover, div[data-baseweb="select"] > div:hover {
+        border-color: #94A3B8 !important;
+        background-color: #FFFFFF !important;
     }
     input:focus, textarea:focus, div[data-baseweb="select"] > div:focus-within {
-        box-shadow: 0 0 0 2px #3B82F6 !important;
-        border-color: #3B82F6 !important;
+        background-color: #FFFFFF !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18) !important;
+        border-color: #2563EB !important;
     }
     
     /* 9. TÍTULOS DE LOS CAMPOS (Labels) */
-    [data-testid="stTextInput"] label, [data-testid="stTextArea"] label, [data-testid="stSelectbox"] label {
+    [data-testid="stTextInput"] label, [data-testid="stTextArea"] label, [data-testid="stSelectbox"] label, [data-testid="stDateInput"] label, [data-testid="stNumberInput"] label {
         display: block !important;
         font-weight: 600 !important;
         color: #334155 !important;
-        font-size: 14px !important;
-        margin-bottom: 4px !important;
+        font-size: 13.5px !important;
+        margin-bottom: 5px !important;
+    }
+
+    /* 10. ALERTAS Y NOTIFICACIONES REFINADAS */
+    [data-testid="stAlert"] {
+        border-radius: 12px !important;
+        border: 1px solid rgba(0,0,0,0.05) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -147,68 +290,60 @@ def login():
     st.markdown("""
         <style>
         .stApp {
-            background: radial-gradient(circle at center, #F8FAFC 0%, #E2E8F0 100%);
+            background: radial-gradient(circle at 20% 20%, #EFF6FF 0%, #F8FAFC 45%, #E2E8F0 100%);
         }
         [data-testid="stVerticalBlockBorderWrapper"] {
-            border-radius: 16px !important;
-            border: 1px solid #FFFFFF !important;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-            background: #FFFFFF !important;
-            padding: 10px !important;
+            border-radius: 22px !important;
+            border: 1px solid rgba(255, 255, 255, 0.9) !important;
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.03) !important;
+            background: rgba(255, 255, 255, 0.96) !important;
+            backdrop-filter: blur(12px) !important;
+            padding: 28px !important;
         }
         [data-testid="stTextInput"] input {
-            background-color: #F1F5F9 !important; 
+            background-color: #F8FAFC !important; 
             border: 1px solid #CBD5E1 !important;
-            border-radius: 10px !important;
+            border-radius: 12px !important;
             padding: 14px 16px !important; 
             font-size: 15px !important;
             color: #0F172A !important;
             font-weight: 500 !important;
         }
-        [data-testid="stTextInput"] input:focus {
-            background-color: #FFFFFF !important;
-            border-color: #2563EB !important;
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15) !important; 
-        }
         .stFormSubmitButton button {
-            border-radius: 10px !important;
-            padding: 6px 0px !important;
-            font-size: 16px !important;
-            letter-spacing: 1px;
-            background-color: #1E3A8A !important;
-            box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.2) !important;
+            border-radius: 12px !important;
+            padding: 10px 0px !important;
+            font-size: 15px !important;
+            letter-spacing: 0.8px;
+            background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%) !important;
+            box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.4) !important;
             border: none !important;
             color: white !important;
-            margin-top: 15px !important;
-            transition: all 0.3s ease !important;
-        }
-        .stFormSubmitButton button:hover {
-            background-color: #1E40AF !important;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(30, 58, 138, 0.3) !important;
+            margin-top: 12px !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
     st.write("")
     st.write("")
-    st.write("")
+    mostrar_logo(ancho="210px")
     
-    mostrar_logo(ancho="220px")
-    
-    col1, col2, col3 = st.columns([1.5, 1, 1.5])
+    col1, col2, col3 = st.columns([1.3, 1.1, 1.3])
     
     with col2:
         with st.container(border=True):
+            st.markdown("""
+                <div style="text-align: center; margin-bottom: 22px;">
+                    <span style="background: #EFF6FF; color: #1D4ED8; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 999px; letter-spacing: 0.8px; text-transform: uppercase;">Portal Clínico Encriptado</span>
+                    <h3 style="color: #0F172A; margin-top: 10px; margin-bottom: 4px; font-size: 22px;">Bienvenido de nuevo</h3>
+                    <p style="color: #64748B; font-size: 13.5px; margin: 0;">Ingrese sus credenciales corporativas de Terintalia</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
             with st.form("form_login", clear_on_submit=False):
-                st.markdown("<p style='text-align: center; color: #64748B; margin-bottom: 25px; font-weight: 500;'>Acceso Seguro al Sistema Clínico</p>", unsafe_allow_html=True)
+                usuario = st.text_input("CORREO CORPORATIVO", placeholder="nombre@terintalia.com").lower().strip()
+                password = st.text_input("CONTRASEÑA", type="password", placeholder="••••••••")
                 
-                usuario = st.text_input("CORREO CORPORATIVO").lower().strip()
-                password = st.text_input("CONTRASEÑA", type="password")
-                
-                st.write("") 
-                
-                submit = st.form_submit_button("INICIAR SESIÓN", type="primary", use_container_width=True)
+                submit = st.form_submit_button("INGRESAR AL PORTAL →", type="primary", use_container_width=True)
                 
                 if submit:
                     if usuario == "admin@terintalia.com" and password == "Master2026":
@@ -219,7 +354,6 @@ def login():
                         st.rerun()
                     elif usuario in ["asistente.clinico@terintalia.com", "recepcion@terintalia.com"] and password == "Recep2026":
                         st.session_state.autenticado = True
-                        # Mantenemos RECEPCIONISTA en backend para compatibilidad total con todos los módulos
                         st.session_state.rol = "RECEPCIONISTA"
                         st.session_state.nombre = "ASISTENTE CLÍNICO"
                         st.session_state.user_id = "ASISTENTE"
@@ -228,8 +362,6 @@ def login():
                         query = db.collection("especialistas").where("correo_corporativo", "==", usuario).get()
                         if query:
                             user_doc = query[0].to_dict()
-                            
-                            # --- VALIDACIÓN: BLOQUEAR SI ESTÁ INACTIVO ---
                             if user_doc.get("estatus", "ACTIVO").upper() == "INACTIVO":
                                 st.error("🚫 Acceso denegado: Usuario revocado o inactivo. Contacte al administrador.")
                             elif user_doc.get("password") == password:
@@ -242,6 +374,8 @@ def login():
                                 st.error("Clave incorrecta.")
                         else: 
                             st.error("Usuario no registrado.")
+                            
+        st.markdown("<p style='text-align:center; color:#94A3B8; font-size:12px; margin-top:18px;'>🔒 Terintalia OS • Cumplimiento Normativo de Expediente Clínico</p>", unsafe_allow_html=True)
 
 # --- INICIO DEL SISTEMA ---
 if "autenticado" not in st.session_state:
@@ -254,11 +388,27 @@ else:
     rol = st.session_state.rol
     rol_visual = "ASISTENTE CLÍNICO" if rol in ["RECEPCIONISTA", "ASISTENTE CLÍNICO"] else rol
     
+    # Iniciales para el avatar del usuario
+    partes_nombre = st.session_state.nombre.split()
+    iniciales_user = "".join([p[0] for p in partes_nombre[:2]]).upper() if partes_nombre else "TR"
+    
     with st.sidebar:
-        mostrar_logo(ancho="160px")
-        st.markdown(f"<div style='text-align:center; padding-bottom: 10px;'><b>{st.session_state.nombre}</b><br><small style='color:#3B82F6;'>{rol_visual}</small></div>", unsafe_allow_html=True)
+        mostrar_logo(ancho="150px")
         
-        st.markdown("### 📌 MENÚ PRINCIPAL")
+        # Tarjeta de Perfil Estilo Cristal Oscuro en Sidebar
+        st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; margin: 8px 0 20px 0; display: flex; align-items: center; gap: 12px;">
+                <div style="width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 15px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(37,99,235,0.3);">
+                    {iniciales_user}
+                </div>
+                <div style="overflow: hidden;">
+                    <div style="color: #F8FAFC; font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{st.session_state.nombre}</div>
+                    <div style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #60A5FA; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-top: 4px; letter-spacing: 0.4px;">● {rol_visual}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<p style='font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #64748B !important; margin-bottom: 6px; padding-left: 4px;'>Navegación Clínica</p>", unsafe_allow_html=True)
         
         opciones_principales = ["📊 Dashboard (Inicio)"]
         
@@ -273,15 +423,29 @@ else:
         
         opcion = st.radio("Módulos", opciones_principales, key="menu_principal", label_visibility="collapsed")
         
-        st.markdown("---")
-        if st.button("🚪 CERRAR SESIÓN", key="btn_cerrar", use_container_width=True):
+        st.markdown("<div style='margin-top: 28px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;'></div>", unsafe_allow_html=True)
+        if st.button("🚪 Cerrar Sesión Segura", key="btn_cerrar", use_container_width=True):
             st.session_state.clear()
             st.rerun()
 
     # --- RUTEO DE PANTALLAS ---
     if opcion == "📊 Dashboard (Inicio)":
-        st.title("📊 Resumen de la Clínica")
-        st.write("Visión general del estado actual de Terintalia. *(Solo lectura)*")
+        hoy_str = datetime.now().strftime("%d / %m / %Y")
+        
+        # Banner Ejecutivo Superior
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%); border-radius: 20px; padding: 28px 32px; color: white; margin-bottom: 24px; box-shadow: 0 12px 28px -6px rgba(30, 58, 138, 0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <span style="background: rgba(255,255,255,0.12); color: #93C5FD; font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px; letter-spacing: 0.6px;">📅 FECHA DEL SISTEMA: {hoy_str}</span>
+                    <h2 style="color: #FFFFFF !important; margin: 12px 0 4px 0; font-size: 28px; font-weight: 800;">Panel de Control Clínico</h2>
+                    <p style="color: #CBD5E1 !important; margin: 0; font-size: 14.5px;">Bienvenido, <b>{st.session_state.nombre}</b>. Monitoreo en tiempo real del padrón de pacientes.</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 12px 20px; text-align: right;">
+                    <div style="font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.8px;">Nivel de Acceso</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #38BDF8; margin-top: 2px;">{rol_visual}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
         
         todos_docs = db.collection("pacientes").get()
         
@@ -296,20 +460,56 @@ else:
         total_pac = len(pacientes_docs)
         pac_activos = sum(1 for p in pacientes_docs if p.to_dict().get("status") == "ACTIVO")
         pac_inactivos = total_pac - pac_activos
+        porcentaje_activo = int((pac_activos / total_pac) * 100) if total_pac > 0 else 0
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            with st.container(border=True):
-                st.metric(label="👥 Total Pacientes Registrados", value=total_pac)
+            st.markdown(f"""
+                <div style="background: white; border-radius: 16px; padding: 22px 24px; border: 1px solid #E2E8F0; border-left: 5px solid #2563EB; box-shadow: 0 4px 12px rgba(15,23,42,0.04);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #64748B; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Expedientes</span>
+                        <span style="background: #EFF6FF; color: #2563EB; padding: 8px 10px; border-radius: 10px; font-size: 18px;">👥</span>
+                    </div>
+                    <div style="font-size: 36px; font-weight: 800; color: #0F172A; margin: 10px 0 4px 0; font-family: 'Plus Jakarta Sans', sans-serif;">{total_pac}</div>
+                    <div style="color: #64748B; font-size: 12.5px;">Padrón registrado bajo tu alcance</div>
+                </div>
+            """, unsafe_allow_html=True)
         with col2:
-            with st.container(border=True):
-                st.metric(label="🟢 Pacientes Activos", value=pac_activos)
+            st.markdown(f"""
+                <div style="background: white; border-radius: 16px; padding: 22px 24px; border: 1px solid #E2E8F0; border-left: 5px solid #10B981; box-shadow: 0 4px 12px rgba(15,23,42,0.04);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #64748B; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Pacientes Activos</span>
+                        <span style="background: #ECFDF5; color: #10B981; padding: 8px 10px; border-radius: 10px; font-size: 18px;">🟢</span>
+                    </div>
+                    <div style="font-size: 36px; font-weight: 800; color: #0F172A; margin: 10px 0 4px 0; font-family: 'Plus Jakarta Sans', sans-serif;">{pac_activos}</div>
+                    <div style="color: #059669; font-size: 12.5px; font-weight: 600;">{porcentaje_activo}% de tasa de actividad clínica</div>
+                </div>
+            """, unsafe_allow_html=True)
         with col3:
-            with st.container(border=True):
-                st.metric(label="⚪ Pacientes Inactivos", value=pac_inactivos)
+            st.markdown(f"""
+                <div style="background: white; border-radius: 16px; padding: 22px 24px; border: 1px solid #E2E8F0; border-left: 5px solid #94A3B8; box-shadow: 0 4px 12px rgba(15,23,42,0.04);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #64748B; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Archivo / Inactivos</span>
+                        <span style="background: #F1F5F9; color: #64748B; padding: 8px 10px; border-radius: 10px; font-size: 18px;">📁</span>
+                    </div>
+                    <div style="font-size: 36px; font-weight: 800; color: #0F172A; margin: 10px 0 4px 0; font-family: 'Plus Jakarta Sans', sans-serif;">{pac_inactivos}</div>
+                    <div style="color: #64748B; font-size: 12.5px;">Expedientes en resguardo histórico</div>
+                </div>
+            """, unsafe_allow_html=True)
                 
-        st.markdown("---")
-        st.info("💡 Utiliza el menú lateral para acceder a los expedientes y gestionar la información.")
+        st.write("")
+        st.markdown("""
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 20px 24px; margin-top: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div style="background: #FEF3C7; color: #D97706; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;">💡</div>
+                    <div>
+                        <div style="font-weight: 700; color: #0F172A; font-size: 14.5px;">Acceso Rápido al Archivero Digital</div>
+                        <div style="color: #64748B; font-size: 13px;">Selecciona un módulo en el menú izquierdo para consultar historias clínicas, sellar notas de evolución o subir adjuntos.</div>
+                    </div>
+                </div>
+                <span style="background: #F1F5F9; color: #475569; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px;">NOM-004-SSA3-2012 Ready</span>
+            </div>
+        """, unsafe_allow_html=True)
 
     elif opcion == "📝 Alta de Pacientes":
         mod_pacientes.render_alta_pacientes(db)
