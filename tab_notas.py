@@ -170,16 +170,30 @@ def render(db, id_pac, paciente=None):
 
     esp_upper = paciente.get("esp", "").upper()
     terapia = paciente.get("tipo_terapia", "")
+    rol_actual = st.session_state.get("rol", "").upper()
 
-    opciones_notas = []
+    # 1. Determinar formatos base según la especialidad del paciente
     if "FISIO" in esp_upper:
         opciones_notas = ["NOTA FISIOTERAPIA"]
     elif "NUTRI" in esp_upper:
         opciones_notas = ["NOTA NUTRICIÓN"]
     elif terapia == "De Pareja":
-        opciones_notas = ["NOTA TERAPIA DE PAREJA"]
+        opciones_notas = ["NOTA TERAPIA DE PAREJA", "NOTA E.M.D.R.", "NOTA S.O.A.P. (Psicología)"]
     else:
         opciones_notas = ["NOTA S.O.A.P. (Psicología)", "NOTA E.M.D.R."]
+
+    # 2. Si es Asistente Clínico o Director, garantizar que pueda agregar NOTA E.M.D.R. (y cualquier otro formato)
+    if rol_actual in ["DIRECTOR", "RECEPCIONISTA", "ASISTENTE CLÍNICO"]:
+        todos_formatos = [
+            "NOTA S.O.A.P. (Psicología)",
+            "NOTA E.M.D.R.",
+            "NOTA TERAPIA DE PAREJA",
+            "NOTA NUTRICIÓN",
+            "NOTA FISIOTERAPIA"
+        ]
+        for fmt in todos_formatos:
+            if fmt not in opciones_notas:
+                opciones_notas.append(fmt)
 
     # --- LECTURA DE NOTAS PREVIAS Y BORRADORES ---
     todas_las_notas_ref = db.collection("pacientes").document(id_pac).collection("notas_evolucion").get()
