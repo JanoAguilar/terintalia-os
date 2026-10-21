@@ -210,8 +210,8 @@ def render_expedientes(db, rol, user_id):
         "📎 Adjuntos"
     ])
 
-    with tab1: tab_legales.render(db, paciente, id_pac, rol)
+with tab1: tab_legales.render(db, paciente, id_pac, rol)
     with tab2: tab_historia.render(db, paciente, id_pac)
-    with tab3: tab_notas.render(db, id_pac)
+    with tab3: tab_notas.render(db, id_pac, paciente)  # <-- Se agregó ", paciente" para ahorrar una lectura a Firestore
     with tab4: tab_evaluaciones.render(db, id_pac)
     with tab5: tab_adjuntos.render(db, id_pac)
