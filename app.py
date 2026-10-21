@@ -399,6 +399,7 @@ if "autenticado" not in st.session_state:
 if not st.session_state.autenticado:
     login()
 else:
+    # --- MENÚ LATERAL ESTRUCTURADO ---
     rol = st.session_state.rol
     rol_visual = "ASISTENTE CLÍNICO" if rol in ["RECEPCIONISTA", "ASISTENTE CLÍNICO"] else rol
     
@@ -446,6 +447,7 @@ else:
     if opcion == "📊 Dashboard (Inicio)":
         hoy_str = datetime.now().strftime("%d / %m / %Y")
         
+        # Banner Ejecutivo Superior
         st.markdown(f"""
             <div style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%); border-radius: 20px; padding: 28px 32px; color: white; margin-bottom: 24px; box-shadow: 0 12px 28px -6px rgba(30, 58, 138, 0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
                 <div>
@@ -476,6 +478,7 @@ else:
         pac_inactivos = total_pac - pac_activos
         porcentaje_activo = int((pac_activos / total_pac) * 100) if total_pac > 0 else 0
         
+        # --- FILA 1: TARJETAS KPI PRINCIPALES ---
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown(f"""
@@ -513,6 +516,7 @@ else:
                 
         st.write("")
 
+        # --- FILA 2: ANALÍTICA VISUAL (DISTRIBUCIÓN Y ÚLTIMOS INGRESOS) ---
         col_ana1, col_ana2 = st.columns([1.15, 1])
 
         with col_ana1:
@@ -530,6 +534,7 @@ else:
                 if total_pac == 0:
                     st.info("Aún no hay pacientes registrados para generar métricas por especialidad.")
                 else:
+                    # Conteo por especialidad
                     conteo_esp = {}
                     conteo_mod = {"Presencial": 0, "Online": 0, "Híbrido": 0}
                     for p in lista_pac_data:
@@ -557,6 +562,7 @@ else:
                         """
                     st.markdown(html_barras, unsafe_allow_html=True)
 
+                    # Mini-píldoras de Modalidad
                     st.markdown(f"""
                         <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #F1F5F9; display: flex; gap: 10px; flex-wrap: wrap;">
                             <div style="flex:1; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:8px 12px; text-align:center;">
@@ -588,6 +594,7 @@ else:
                 if total_pac == 0:
                     st.info("No hay expedientes recientes para mostrar.")
                 else:
+                    # Ordenar pacientes recientes
                     pac_recientes = lista_pac_data[-4:][::-1]
                     html_feed = ""
                     for pr in pac_recientes:
