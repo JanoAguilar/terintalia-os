@@ -19,6 +19,20 @@ def boton_descarga_pdf(nombre_archivo, etiqueta_boton, nombre_salida):
     else:
         st.button(f"⚠️ Falta archivo en carpeta: {nombre_archivo}", use_container_width=True, disabled=True)
 
+# --- CABECERA ESTILIZADA DE PASO (WIZARD) ---
+def cabecera_paso(num, titulo, subtitulo, color_bg="#EFF6FF", color_txt="#1D4ED8"):
+    st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #F1F5F9;">
+            <div style="background: {color_bg}; color: {color_txt}; font-weight: 800; font-size: 13px; padding: 6px 12px; border-radius: 10px; letter-spacing: 0.5px; font-family: 'Plus Jakarta Sans', sans-serif;">
+                PASO {num}
+            </div>
+            <div>
+                <div style="font-size: 16px; font-weight: 800; color: #0F172A; font-family: 'Plus Jakarta Sans', sans-serif;">{titulo}</div>
+                <div style="font-size: 12.5px; color: #64748B;">{subtitulo}</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
 # --- LÓGICA DE NOMENCLATURA INTELIGENTE ---
 def obtener_codigo_especialidad(esp):
     esp = esp.upper()
@@ -28,18 +42,15 @@ def obtener_codigo_especialidad(esp):
 
 def generar_id_terintalia(db, especialidad, anio_elegido):
     codigo_esp = obtener_codigo_especialidad(especialidad)
-    # Construimos el prefijo exacto. Ej: "TER2024PSIC"
     prefijo = f"TER{anio_elegido}{codigo_esp}"
     
     docs = db.collection("pacientes").get()
     max_consecutivo = 0
     
-    # Buscamos cuál es el número más alto que ya existe para ESE año y ESA especialidad
     for doc in docs:
         id_pac = doc.to_dict().get("id_p", "")
         if id_pac.startswith(prefijo):
             try:
-                # Extraemos solo la parte numérica final
                 num = int(id_pac.replace(prefijo, ""))
                 if num > max_consecutivo:
                     max_consecutivo = num
@@ -50,9 +61,13 @@ def generar_id_terintalia(db, especialidad, anio_elegido):
     return f"{prefijo}{consecutivo}"
 
 def render_alta_pacientes(db):
-    st.markdown("<h2 style='color: #164032; font-weight: 600; font-size: 26px; margin-bottom: 0px;'>Registro de Nuevo Paciente</h2>", unsafe_allow_html=True)
-    st.caption("Complete la información por bloques para aperturar el expediente clínico.")
-    st.write("")
+    st.markdown("""
+        <div style="margin-bottom: 20px;">
+            <span style="background: #EFF6FF; color: #1D4ED8; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.6px; text-transform: uppercase;">Admisión Clínica</span>
+            <h2 style="color: #0F172A; font-weight: 800; font-size: 26px; margin: 6px 0 2px 0;">📝 Registro de Nuevo Paciente</h2>
+            <p style="color: #64748B; font-size: 13.5px; margin: 0;">Complete los pasos secuenciales para aperturar el expediente digital y generar el paquete legal.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     if 'confirmando_p' not in st.session_state:
         st.session_state.confirmando_p = False
@@ -78,51 +93,47 @@ def render_alta_pacientes(db):
         else:
             etiqueta_legal = "ADULTO (Mayor de 18 años)" if es_adulto else "INFANTO JUVENIL (Menor de edad)"
 
-        st.success("✨ ¡Expediente creado exitosamente!")
-        
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #059669 0%, #10B981 100%); border-radius: 18px; padding: 24px 28px; color: white; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.35); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                <div>
+                    <span style="background: rgba(255,255,255,0.2); color: #FFFFFF; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 999px; letter-spacing: 0.6px;">✨ EXPEDIENTE APERTURADO</span>
+                    <h3 style="color: #FFFFFF !important; margin: 8px 0 2px 0; font-size: 22px;">{p_guardado['nombre']}</h3>
+                    <p style="color: #D1FAE5 !important; margin: 0; font-size: 13.5px;">Especialista: <b>{p_guardado['med']}</b> • Inicio: {p_guardado.get('fecha_inicio_tratamiento', 'N/A')}</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 14px; padding: 10px 18px; text-align: right;">
+                    <div style="font-size: 11px; color: #D1FAE5; text-transform: uppercase;">Folio Asignado</div>
+                    <div style="font-size: 20px; font-weight: 800; color: #FFFFFF;">{p_guardado['id_p']}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
         with st.container(border=True):
-            st.markdown(f"<h4 style='color: #E67E22; font-size: 16px;'>📄 Folio: {p_guardado['id_p']}</h4>", unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            with c1:
-                st.write(f"**Paciente / Titular:** {p_guardado['nombre']}")
-                st.write(f"**Edad Titular:** {edad_paciente} años")
-                if p_guardado.get("nombre_tutor") != "N/A":
-                    st.markdown(f"**Tutor Legal:** <span style='color:#E67E22;'>{p_guardado['nombre_tutor']}</span>", unsafe_allow_html=True)
-            with c2:
-                st.write(f"**Especialista asignado:** {p_guardado['med']} ({p_guardado['esp']})")
-                if tipo_servicio != "N/A":
-                    st.write(f"**Servicio:** {tipo_servicio} ({p_guardado['modalidad']})")
-                st.write(f"**Inicio de Tratamiento:** {p_guardado.get('fecha_inicio_tratamiento', 'N/A')}")
-
-        # --- BOTONES DE DESCARGA DE FORMATOS EN BLANCO ---
-        st.markdown(f"<h4 style='color: #164032; font-size: 16px; margin-top: 15px;'>🖨️ Formatos en Blanco a Imprimir: {etiqueta_legal}</h4>", unsafe_allow_html=True)
-        
-        col_btn1, col_btn2 = st.columns(2)
-        
-        with col_btn1:
-            boton_descarga_pdf("CARATULA DATOS GENERALES.pdf", "1. Carátula Datos Generales", "Caratula_Vacia.pdf")
+            st.markdown(f"<h4 style='color: #0F172A; font-size: 16px; margin-bottom: 12px;'>🖨️ Paquete Legal en Blanco a Imprimir: <span style='color:#2563EB;'>{etiqueta_legal}</span></h4>", unsafe_allow_html=True)
             
-            if es_pareja:
-                boton_descarga_pdf("CONSENTIMIENTO INFORMADO – TERAPIA DE PAREJA.pdf", "2. Consentimiento de Pareja", "Consentimiento_Pareja.pdf")
-            elif es_familiar:
-                boton_descarga_pdf("CONSENTIMIENTO INFORMADO GENERAL.pdf", "2. Consentimiento Familiar", "Consentimiento_Familiar.pdf")
-            else:
-                boton_descarga_pdf("CONSENTIMIENTO INFORMADO GENERAL.pdf", "2. Consentimiento Informado", "Consentimiento_General.pdf")
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                boton_descarga_pdf("CARATULA DATOS GENERALES.pdf", "1. Carátula Datos Generales", "Caratula_Vacia.pdf")
+                if es_pareja:
+                    boton_descarga_pdf("CONSENTIMIENTO INFORMADO – TERAPIA DE PAREJA.pdf", "2. Consentimiento de Pareja", "Consentimiento_Pareja.pdf")
+                elif es_familiar:
+                    boton_descarga_pdf("CONSENTIMIENTO INFORMADO GENERAL.pdf", "2. Consentimiento Familiar", "Consentimiento_Familiar.pdf")
+                else:
+                    boton_descarga_pdf("CONSENTIMIENTO INFORMADO GENERAL.pdf", "2. Consentimiento Informado", "Consentimiento_General.pdf")
 
-        with col_btn2:
-            if es_pareja:
-                boton_descarga_pdf("CONTRATO – TERAPIA DE PAREJA.pdf", "3. Contrato de Pareja", "Contrato_Pareja.pdf")
-            elif es_familiar:
-                boton_descarga_pdf("CONTRATO TERAPEÚTICO ADULTOS.pdf", "3. Contrato Familiar", "Contrato_Familiar.pdf")
-            elif es_adulto:
-                boton_descarga_pdf("CONTRATO TERAPEÚTICO ADULTOS.pdf", "3. Contrato Adulto", "Contrato_Adulto.pdf")
-            else:
-                boton_descarga_pdf("CONTRATO TERAPÉUTICO INFANTOJUVENIL.pdf", "3. Contrato Infanto-Juvenil", "Contrato_IJ.pdf")
-            
-            boton_descarga_pdf("AVISO DE PRIVACIDAD.pdf", "4. Aviso de Privacidad", "Aviso_Privacidad.pdf")
+            with col_btn2:
+                if es_pareja:
+                    boton_descarga_pdf("CONTRATO – TERAPIA DE PAREJA.pdf", "3. Contrato de Pareja", "Contrato_Pareja.pdf")
+                elif es_familiar:
+                    boton_descarga_pdf("CONTRATO TERAPEÚTICO ADULTOS.pdf", "3. Contrato Familiar", "Contrato_Familiar.pdf")
+                elif es_adulto:
+                    boton_descarga_pdf("CONTRATO TERAPEÚTICO ADULTOS.pdf", "3. Contrato Adulto", "Contrato_Adulto.pdf")
+                else:
+                    boton_descarga_pdf("CONTRATO TERAPÉUTICO INFANTOJUVENIL.pdf", "3. Contrato Infanto-Juvenil", "Contrato_IJ.pdf")
+                
+                boton_descarga_pdf("AVISO DE PRIVACIDAD.pdf", "4. Aviso de Privacidad", "Aviso_Privacidad.pdf")
 
-        st.markdown("---")
-        if st.button("🔄 Limpiar y registrar otro paciente", use_container_width=True):
+        st.write("")
+        if st.button("🔄 Limpiar formulario y registrar otro paciente", use_container_width=True):
             st.session_state.paciente_guardado = None
             st.rerun()
         return
@@ -141,12 +152,12 @@ def render_alta_pacientes(db):
         dict_esp[area].append(nombre_id)
 
     # ==========================================
-    # PANTALLA 1: CAPTURA DE DATOS
+    # PANTALLA 1: CAPTURA DE DATOS (WIZARD)
     # ==========================================
     if not st.session_state.confirmando_p:
         
         with st.container(border=True):
-            st.markdown("<h4 style='color: #164032; font-size: 15px; margin-bottom: 5px;'>👤 Datos Personales (Titular)</h4>", unsafe_allow_html=True)
+            cabecera_paso("01", "Datos Personales del Titular", "Identificación demográfica básica y validación de mayoría de edad.")
             f1_c1, f1_c2 = st.columns(2)
             with f1_c1: nombre = st.text_input("Nombre(s)").upper()
             with f1_c2: apellido = st.text_input("Apellido(s)").upper()
@@ -172,36 +183,34 @@ def render_alta_pacientes(db):
 
             nombre_tutor = "N/A"
             if es_menor:
-                st.markdown("<hr style='margin: 10px 0; border: 0; border-top: 1px dashed #ccc;'/>", unsafe_allow_html=True)
-                st.markdown("<span style='color: #E67E22; font-weight: bold;'>📌 Requisito Legal: Paciente Menor de Edad</span>", unsafe_allow_html=True)
-                nombre_tutor = st.text_input("Nombre Completo del Padre o Tutor Legal").upper()
+                st.markdown("<hr style='margin: 12px 0; border: 0; border-top: 1px dashed #CBD5E1;'/>", unsafe_allow_html=True)
+                st.markdown("<span style='color: #EA580C; font-weight: 700; font-size: 13.5px;'>📌 Requisito Legal Obligatorio: Paciente Menor de Edad</span>", unsafe_allow_html=True)
+                nombre_tutor = st.text_input("Nombre Completo del Padre, Madre o Tutor Legal").upper()
 
         with st.container(border=True):
-            st.markdown("<h4 style='color: #164032; font-size: 15px; margin-bottom: 5px;'>📞 Información de Contacto</h4>", unsafe_allow_html=True)
+            cabecera_paso("02", "Información de Contacto y Domicilio", "Medios de localización oficial del paciente titular.", "#ECFDF5", "#059669")
             f3_c1, f3_c2 = st.columns(2)
             with f3_c1: tel = st.text_input("Teléfono celular (10 dígitos)", max_chars=10)
-            with f3_c2: tel_casa = st.text_input("Teléfono de casa", max_chars=10)
+            with f3_c2: tel_casa = st.text_input("Teléfono de casa / fijo", max_chars=10)
             
             f3_c3, f3_c4 = st.columns(2)
             with f3_c3: correo = st.text_input("Correo electrónico").lower()
             with f3_c4: dir_com = st.text_input("Domicilio completo").upper()
 
         with st.container(border=True):
-            st.markdown("<h4 style='color: #164032; font-size: 15px; margin-bottom: 5px;'>🚨 En caso de emergencia</h4>", unsafe_allow_html=True)
+            cabecera_paso("03", "Contacto de Emergencia", "Persona de referencia inmediata en caso de eventualidad médica.", "#FEF2F2", "#DC2626")
             ce_c1, ce_c2, ce_c3 = st.columns(3)
-            with ce_c1: ce_nombre = st.text_input("Llamar a (Nombre)").upper()
+            with ce_c1: ce_nombre = st.text_input("Llamar a (Nombre Completo)").upper()
             with ce_c2: ce_parentesco = st.text_input("Parentesco").upper()
-            with ce_c3: ce_tel = st.text_input("Tel. de emergencia", max_chars=10)
+            with ce_c3: ce_tel = st.text_input("Tel. de emergencia (10 dígitos)", max_chars=10)
 
         with st.container(border=True):
-            st.markdown("<h4 style='color: #E67E22; font-size: 15px; margin-bottom: 5px;'>🏥 Asignación Clínica</h4>", unsafe_allow_html=True)
+            cabecera_paso("04", "Asignación Clínica y Folio", "Definición de área médica, especialista tratante y fecha de inicio.", "#FFF7ED", "#EA580C")
             
-            # --- NUEVA SECCIÓN DE FECHA DE INICIO DE TRATAMIENTO Y AÑO HISTÓRICO ---
             c_hist1, c_hist2, c_hist3 = st.columns(3)
             with c_hist1: 
                 es_historico = st.toggle("¿Es un registro histórico?")
             with c_hist2:
-                # Si no es histórico, usar el año actual y bloquear
                 anio_actual = datetime.now().year
                 anio_registro = st.number_input("Año del registro (Folio)", min_value=2000, max_value=anio_actual, value=anio_actual, disabled=not es_historico)
             with c_hist3:
@@ -225,17 +234,16 @@ def render_alta_pacientes(db):
             modalidad = "N/A"
             
             if "PSICOLOG" in area_sel.upper():
-                st.markdown("<hr style='margin: 10px 0; border: 0; border-top: 1px dashed #ccc;'/>", unsafe_allow_html=True)
-                st.caption("📌 Detalles del Servicio Psicológico")
+                st.markdown("<hr style='margin: 12px 0; border: 0; border-top: 1px dashed #CBD5E1;'/>", unsafe_allow_html=True)
+                st.caption("📌 Configuración del Servicio Psicológico")
                 col_psi1, col_psi2 = st.columns(2)
                 with col_psi1:
-                    # --- CANDADO DE EDAD: Quitar Infanto-Juvenil si es adulto ---
                     if not es_menor:
                         opciones_servicio = ["Individual", "De Pareja", "Familiar"]
-                        index_servicio = 0 # Individual por defecto
+                        index_servicio = 0
                     else:
                         opciones_servicio = ["Individual", "Infanto-Juvenil", "De Pareja", "Familiar"]
-                        index_servicio = 1 # Infanto-Juvenil por defecto
+                        index_servicio = 1
                         
                     tipo_terapia = st.selectbox("Tipo de Servicio", opciones_servicio, index=index_servicio)
                 with col_psi2:
@@ -249,7 +257,7 @@ def render_alta_pacientes(db):
 
         if tipo_terapia == "De Pareja":
             with st.container(border=True):
-                st.markdown("<h4 style='color: #D35400; font-size: 15px; margin-bottom: 5px;'>❤️ Datos de la Pareja</h4>", unsafe_allow_html=True)
+                cabecera_paso("05", "Datos del Segundo Integrante (Pareja)", "Información complementaria para el expediente mancomunado.", "#FCE7F3", "#DB2777")
                 cp1, cp2 = st.columns(2)
                 with cp1: n_pareja = st.text_input("Nombre(s) de la pareja").upper()
                 with cp2: a_pareja = st.text_input("Apellido(s) de la pareja").upper()
@@ -262,8 +270,7 @@ def render_alta_pacientes(db):
                 with cp5: correo_pareja = st.text_input("Correo electrónico de la pareja").lower()
                 with cp6: dir_pareja = st.text_input("Domicilio de la pareja (Si es diferente)").upper()
                 
-                # --- NUEVA SECCIÓN: EMERGENCIA PAREJA ---
-                st.markdown("<h5 style='color: #D35400; font-size: 14px; margin-top: 10px;'>🚨 Contacto de Emergencia de la Pareja</h5>", unsafe_allow_html=True)
+                st.markdown("<h5 style='color: #DB2777; font-size: 13.5px; margin-top: 12px;'>🚨 Contacto de Emergencia de la Pareja</h5>", unsafe_allow_html=True)
                 ce_p1, ce_p2, ce_p3 = st.columns(3)
                 with ce_p1: ce_nom_pareja = st.text_input("Llamar a (Emergencia Pareja)").upper()
                 with ce_p2: ce_par_pareja = st.text_input("Parentesco (Emergencia Pareja)").upper()
@@ -274,9 +281,7 @@ def render_alta_pacientes(db):
 
         elif tipo_terapia == "Familiar":
             with st.container(border=True):
-                st.markdown("<h4 style='color: #2980B9; font-size: 15px; margin-bottom: 5px;'>👨‍👩‍👧 Integrantes de la Familia</h4>", unsafe_allow_html=True)
-                st.caption("Ingrese a los demás participantes. El paciente principal ya está registrado arriba.")
-                
+                cabecera_paso("05", "Integrantes Adicionales de la Familia", "Ingrese a los demás participantes. El titular ya quedó registrado en el Paso 01.", "#F3E8FF", "#7C3AED")
                 cf1, cf2 = st.columns(2)
                 with cf1: fam1 = st.text_input("Nombre de Familiar 1").upper()
                 with cf2: par1 = st.text_input("Parentesco 1").upper()
@@ -289,7 +294,7 @@ def render_alta_pacientes(db):
                 if fam2: nombres_familiares.append(fam2)
 
         st.write("")
-        if st.button("🔍 REVISAR Y CONTINUAR", use_container_width=True):
+        if st.button("🔍 REVISAR DATOS Y PREVISUALIZAR FOLIO →", type="primary", use_container_width=True):
             if nombre and tel and dir_com and len(tel) == 10 and (not es_menor or nombre_tutor):
                 
                 nombre_base = f"{nombre} {apellido}".strip()
@@ -330,7 +335,6 @@ def render_alta_pacientes(db):
                     "status": "ACTIVO"
                 }
                 
-                # --- GUARDADO EXHAUSTIVO DE LA PAREJA EN FIREBASE ---
                 if tipo_terapia == "De Pareja":
                     st.session_state.tmp_p["pareja_nombre"] = nombre_pareja_completo
                     st.session_state.tmp_p["pareja_fecha_nac"] = str(f_nac_pareja)
@@ -346,33 +350,46 @@ def render_alta_pacientes(db):
                 st.session_state.confirmando_p = True
                 st.rerun()
             else:
-                st.error("⚠️ Rellena el Nombre, Domicilio, Tutor (si es menor) y verifica que el Tel. tenga 10 dígitos.")
+                st.error("⚠️ Rellena el Nombre, Domicilio, Tutor (si es menor) y verifica que el Teléfono celular tenga exactamente 10 dígitos.")
 
     # ==========================================
-    # PANTALLA 2: CONFIRMACIÓN
+    # PANTALLA 2: CONFIRMACIÓN EJECUTIVA
     # ==========================================
     else:
         p = st.session_state.tmp_p
-        st.info(f"✨ **Folio a generar: {p['id_p']}**")
+        
+        st.markdown(f"""
+            <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 16px; padding: 20px 24px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <div>
+                    <div style="font-size: 12px; font-weight: 700; color: #1D4ED8; text-transform: uppercase;">Verificación Previa al Guardado</div>
+                    <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin-top: 2px;">{p['nombre']}</div>
+                </div>
+                <div style="background: #FFFFFF; border: 1px solid #93C5FD; padding: 8px 16px; border-radius: 12px; text-align: right;">
+                    <div style="font-size: 10.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Folio Consecutivo a Generar</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #EA580C;">📄 {p['id_p']}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
         
         with st.container(border=True):
             c1, c2 = st.columns(2)
             with c1:
-                st.write(f"**Expediente a nombre de:** {p['nombre']}")
+                st.write(f"**Titular:** {p['nombre_titular']} ({p['edad']} años)")
                 if p['nombre_tutor'] != "N/A":
-                    st.markdown(f"**Tutor Legal:** <span style='color:#E67E22;'>{p['nombre_tutor']}</span>", unsafe_allow_html=True)
-                st.write(f"**Contacto Titular:** {p['telefono']}")
+                    st.markdown(f"**Tutor Legal:** <span style='color:#EA580C; font-weight:700;'>{p['nombre_tutor']}</span>", unsafe_allow_html=True)
+                st.write(f"**Teléfono Celular:** {p['telefono']}")
+                st.write(f"**Domicilio:** {p['direccion']}")
             with c2:
-                # Mostrar explícitamente el especialista
-                st.write(f"**Especialista asignado:** {p['med']} ({p['esp']})")
+                st.write(f"**Especialidad:** {p['esp']}")
+                st.write(f"**Especialista Asignado:** {p['med']}")
                 if p['tipo_terapia'] != "N/A":
                     st.write(f"**Servicio:** {p['tipo_terapia']} ({p['modalidad']})")
                 st.write(f"**Inicio de Tratamiento:** {p['fecha_inicio_tratamiento']}")
 
-        st.markdown("<h4 style='color: #164032; font-size: 15px;'>¿Confirmar y Guardar en Base de Datos?</h4>", unsafe_allow_html=True)
+        st.write("")
         b1, b2 = st.columns(2)
         with b1:
-            if st.button("✅ SÍ, GUARDAR PACIENTE", use_container_width=True, type="primary"):
+            if st.button("✅ CONFIRMAR Y CREAR EXPEDIENTE", use_container_width=True, type="primary"):
                 db.collection("pacientes").document(p['id_p']).set({
                     **p, "fecha_creacion": firestore.SERVER_TIMESTAMP
                 })
@@ -380,6 +397,6 @@ def render_alta_pacientes(db):
                 st.session_state.paciente_guardado = p 
                 st.rerun()
         with b2:
-            if st.button("❌ REGRESAR Y CORREGIR", use_container_width=True):
+            if st.button("⬅️ REGRESAR Y CORREGIR DATOS", use_container_width=True):
                 st.session_state.confirmando_p = False
                 st.rerun()
