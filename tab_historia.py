@@ -168,7 +168,6 @@ def generar_pdf_historia(paciente, datos_hc, tipo_plantilla):
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     styles = getSampleStyleSheet()
     
-    # Estilos de texto
     title_style = ParagraphStyle(name="TitleStyle", parent=styles['Heading1'], alignment=TA_CENTER, fontSize=16, spaceAfter=20, textColor="#164032")
     heading_style = ParagraphStyle(name="HeadingStyle", parent=styles['Heading2'], fontSize=12, spaceAfter=8, textColor="#164032")
     sub_heading = ParagraphStyle(name="SubHeading", parent=styles['Heading3'], fontSize=10, spaceAfter=5, textColor="#2980B9")
@@ -187,7 +186,6 @@ def generar_pdf_historia(paciente, datos_hc, tipo_plantilla):
     folio = paciente.get('id_p', 'N/A')
     inicio_tratamiento = paciente.get('fecha_inicio_tratamiento', 'N/A')
     
-    # Datos de Validación Legal
     info_expediente = f"""
     <b>Número de Expediente (Folio):</b> {folio}<br/>
     <b>Paciente:</b> {nombre_pac}<br/>
@@ -238,19 +236,13 @@ def generar_pdf_historia(paciente, datos_hc, tipo_plantilla):
     elements.append(Paragraph("II. REGISTRO CLÍNICO DE EVALUACIÓN", heading_style))
     elements.append(Spacer(1, 5))
     
-    # Iteración ordenada basada en el mapeo maestro
     for clave, titulo in ORDEN_CAMPOS.get(tipo_plantilla, []):
         valor = datos_hc.get(clave, "N/A")
-        
-        # Procesar listas (ej. selección múltiple)
         if isinstance(valor, list):
             valor = ", ".join(valor) if valor else "Ninguno"
             
-        # Si el campo tiene información real, lo agregamos al PDF
         if str(valor).strip() and str(valor).strip() != "N/A":
-            # Convertimos los saltos de línea normales a etiquetas <br /> para ReportLab
             valor_limpio = str(valor).replace('\n', '<br />')
-            
             elements.append(Paragraph(titulo, sub_heading))
             elements.append(Paragraph(valor_limpio, normal_style))
             
@@ -289,17 +281,21 @@ def render(db, paciente, id_pac):
         tipo_plantilla = "PSICOLOGÍA ADULTOS"
 
     # =========================================================
-    # APARTADO I: FICHA DE IDENTIFICACIÓN Y BOTÓN PDF
+    # APARTADO I: FICHA DE IDENTIFICACIÓN ESTILO BENTO GRID
     # =========================================================
-    c_tit, c_pdf = st.columns([3, 1])
+    c_tit, c_pdf = st.columns([2.8, 1.2])
     with c_tit:
-        st.markdown("<h4 style='color: #164032; margin-top: 0px;'>📋 I. Ficha de Identificación y Datos Generales</h4>", unsafe_allow_html=True)
+        st.markdown(f"""
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <span style="background:#EFF6FF; color:#1D4ED8; font-weight:800; font-size:12px; padding:4px 10px; border-radius:8px;">SECCIÓN I</span>
+                <h4 style="color:#0F172A; margin:0; font-size:18px; font-weight:800;">Ficha de Identificación y Datos Generales</h4>
+            </div>
+        """, unsafe_allow_html=True)
     with c_pdf:
         if bloqueado:
-            # Si está sellado, generamos el PDF y activamos el botón de descarga
             pdf_data = generar_pdf_historia(paciente, datos_hc, tipo_plantilla)
             st.download_button(
-                label="📥 Exportar a PDF",
+                label="📥 Exportar Historia (PDF)",
                 data=pdf_data,
                 file_name=f"Historia_Clinica_{paciente.get('nombre', 'Paciente')}.pdf",
                 mime="application/pdf",
@@ -307,83 +303,124 @@ def render(db, paciente, id_pac):
                 type="primary"
             )
         else:
-            # Si es borrador, el botón está bloqueado para proteger la legalidad
-            st.button("🔒 Requiere Sello para Exportar", disabled=True, use_container_width=True)
+            st.button("🔒 Requiere Sello para PDF", disabled=True, use_container_width=True)
 
-    with st.container(border=True):
-        st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>👤 Datos Personales</p>", unsafe_allow_html=True)
-        c1, c2, c3, c4 = st.columns(4)
-        c1.write(f"**Nombre:** {paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))}")
-        c2.write(f"**Edad:** {paciente.get('edad', 'N/A')} años")
-        c3.write(f"**Sexo:** {paciente.get('sexo', paciente.get('genero', 'N/A'))}")
-        c4.write(f"**F. Nacimiento:** {paciente.get('fecha_nacimiento', paciente.get('fecha_nac', 'N/A'))}")
-        
-        c5, c6, c7, c8 = st.columns(4)
-        c5.write(f"**Estado Civil:** {paciente.get('estado_civil', 'N/A')}")
-        c6.write(f"**Escolaridad:** {paciente.get('escolaridad', paciente.get('grado_estudios', 'N/A'))}")
-        c7.write(f"**Ocupación:** {paciente.get('ocupacion', paciente.get('profesion', 'N/A'))}")
-        c8.write(f"**Religión:** {paciente.get('religion', paciente.get('creencia', 'N/A'))}")
-        
-        st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-        
-        st.markdown("<p style='color: #164032; font-weight: bold; margin-bottom: 5px;'>📞 Contacto y Dirección</p>", unsafe_allow_html=True)
-        c9, c10, c11 = st.columns(3)
-        c9.write(f"**Tel. Celular:** {paciente.get('telefono', paciente.get('celular', 'N/A'))}")
-        c10.write(f"**Tel. Casa/Otro:** {paciente.get('tel_casa', paciente.get('telefono_fijo', paciente.get('tel_fijo', 'N/A')))}")
-        c11.write(f"**Correo:** {paciente.get('correo', paciente.get('email', 'N/A'))}")
-        st.write(f"**Domicilio Completo:** {paciente.get('domicilio', paciente.get('direccion', 'N/A'))}")
-        
-        st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+    # Variables seguras para la tarjeta Bento Grid
+    nom_p = paciente.get('nombre_completo', paciente.get('nombre', 'N/A'))
+    edad_p = paciente.get('edad', 'N/A')
+    sexo_p = paciente.get('sexo', paciente.get('genero', 'N/A'))
+    fnac_p = paciente.get('fecha_nacimiento', paciente.get('fecha_nac', 'N/A'))
+    eciv_p = paciente.get('estado_civil', 'N/A')
+    esc_p = paciente.get('escolaridad', paciente.get('grado_estudios', 'N/A'))
+    ocu_p = paciente.get('ocupacion', paciente.get('profesion', 'N/A'))
+    
+    tel_p = paciente.get('telefono', paciente.get('celular', 'N/A'))
+    tcasa_p = paciente.get('tel_casa', paciente.get('telefono_fijo', paciente.get('tel_fijo', 'N/A')))
+    mail_p = paciente.get('correo', paciente.get('email', 'N/A'))
+    dir_p = paciente.get('domicilio', paciente.get('direccion', 'N/A'))
+    
+    esp_p = paciente.get('med', paciente.get('esp', 'N/A'))
+    serv_p = paciente.get('tipo_terapia', paciente.get('servicio', 'N/A'))
+    mod_p = paciente.get('modalidad', 'N/A')
+    ini_p = paciente.get('fecha_inicio_tratamiento', 'N/A')
+    
+    em_nom = paciente.get('contacto_emergencia_nom', paciente.get('contacto_emergencia', paciente.get('nombre_emergencia', 'N/A')))
+    em_par = paciente.get('contacto_emergencia_par', paciente.get('parentesco_emergencia', paciente.get('parentesco', 'N/A')))
+    em_tel = paciente.get('contacto_emergencia_tel', paciente.get('tel_emergencia', paciente.get('telefono_emergencia', 'N/A')))
 
-        st.markdown("<p style='color: #2980B9; font-weight: bold; margin-bottom: 5px;'>🏥 Datos de Atención Clínica</p>", unsafe_allow_html=True)
-        c12, c13, c14 = st.columns(3)
-        c12.write(f"**Especialista:** {paciente.get('esp', paciente.get('especialista_asignado', 'N/A'))}")
-        c13.write(f"**Tipo de Terapia:** {paciente.get('tipo_terapia', paciente.get('servicio', 'N/A'))}")
-        c14.write(f"**Modalidad:** {paciente.get('modalidad', 'N/A')}")
-        
-        # Agregamos la fecha de inicio de tratamiento en pantalla
-        st.write(f"**Fecha de Inicio de Tratamiento:** <span style='color:#164032;'>{paciente.get('fecha_inicio_tratamiento', 'N/A')}</span>", unsafe_allow_html=True)
-
-        st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-        
-        st.markdown("<p style='color: #D35400; font-weight: bold; margin-bottom: 5px;'>🚨 Emergencia</p>", unsafe_allow_html=True)
-        c15, c16, c17 = st.columns(3)
-        c15.write(f"**Llamar a:** {paciente.get('contacto_emergencia', paciente.get('contacto_emergencia_nom', paciente.get('nombre_emergencia', 'N/A')))}")
-        c16.write(f"**Parentesco:** {paciente.get('parentesco_emergencia', paciente.get('contacto_emergencia_par', paciente.get('parentesco', 'N/A')))}")
-        c17.write(f"**Tel. Emergencia:** {paciente.get('tel_emergencia', paciente.get('contacto_emergencia_tel', paciente.get('telefono_emergencia', 'N/A')))}")
-        
-    st.write("")
+    st.markdown(f"""
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 22px;">
+            <!-- TARJETA 1: DATOS DEMOGRÁFICOS -->
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 6px rgba(15,23,42,0.02);">
+                <div style="font-size: 12px; font-weight: 700; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; display:flex; align-items:center; gap:6px;">
+                    <span>👤 Perfil Demográfico</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
+                    <div><span style="color:#64748B;">Nacimiento:</span> <b style="color:#0F172A;">{fnac_p}</b></div>
+                    <div><span style="color:#64748B;">Edad/Sexo:</span> <b style="color:#0F172A;">{edad_p}a • {sexo_p}</b></div>
+                    <div><span style="color:#64748B;">Est. Civil:</span> <b style="color:#0F172A;">{eciv_p}</b></div>
+                    <div><span style="color:#64748B;">Escolaridad:</span> <b style="color:#0F172A;">{esc_p}</b></div>
+                    <div style="grid-column: span 2;"><span style="color:#64748B;">Ocupación:</span> <b style="color:#0F172A;">{ocu_p}</b></div>
+                </div>
+            </div>
+            <!-- TARJETA 2: CONTACTO Y DOMICILIO -->
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 6px rgba(15,23,42,0.02);">
+                <div style="font-size: 12px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; display:flex; align-items:center; gap:6px;">
+                    <span>📞 Contacto y Domicilio</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
+                    <div><span style="color:#64748B;">Celular:</span> <b style="color:#0F172A;">{tel_p}</b></div>
+                    <div><span style="color:#64748B;">Tel. Casa:</span> <b style="color:#0F172A;">{tcasa_p if tcasa_p else 'N/A'}</b></div>
+                    <div style="grid-column: span 2;"><span style="color:#64748B;">Correo:</span> <b style="color:#0F172A;">{mail_p if mail_p else 'N/A'}</b></div>
+                    <div style="grid-column: span 2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:#64748B;">Domicilio:</span> <b style="color:#0F172A;">{dir_p}</b></div>
+                </div>
+            </div>
+            <!-- TARJETA 3: ASIGNACIÓN CLÍNICA -->
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 6px rgba(15,23,42,0.02);">
+                <div style="font-size: 12px; font-weight: 700; color: #2563EB; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; display:flex; align-items:center; gap:6px;">
+                    <span>🏥 Asignación y Tratamiento</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
+                    <div style="grid-column: span 2;"><span style="color:#64748B;">Especialista:</span> <b style="color:#0F172A;">{esp_p}</b></div>
+                    <div><span style="color:#64748B;">Servicio:</span> <b style="color:#0F172A;">{serv_p} ({mod_p})</b></div>
+                    <div><span style="color:#64748B;">Inicio Trat.:</span> <b style="color:#059669;">{ini_p}</b></div>
+                </div>
+            </div>
+            <!-- TARJETA 4: CONTACTO DE EMERGENCIA -->
+            <div style="background: #FFF5F5; border: 1px solid #FED7D7; border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 6px rgba(220,38,38,0.03);">
+                <div style="font-size: 12px; font-weight: 700; color: #DC2626; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; display:flex; align-items:center; gap:6px;">
+                    <span>🚨 En Caso de Emergencia</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
+                    <div style="grid-column: span 2;"><span style="color:#991B1B;">Contactar a:</span> <b style="color:#7F1D1D;">{em_nom if em_nom else 'No especificado'}</b></div>
+                    <div><span style="color:#991B1B;">Parentesco:</span> <b style="color:#7F1D1D;">{em_par if em_par else 'N/A'}</b></div>
+                    <div><span style="color:#991B1B;">Teléfono:</span> <b style="color:#7F1D1D;">{em_tel if em_tel else 'N/A'}</b></div>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     # ==========================================
     # VISTA DE LECTURA (CUANDO YA ESTÁ SELLADO)
     # ==========================================
     if bloqueado:
-        st.success("🔒 **HISTORIA CLÍNICA CERRADA Y FIRMADA LEGALMENTE**")
-        st.caption(f"Sellado por: {datos_hc.get('firmado_por')} el {datos_hc.get('fecha_firma')} | Formato: {tipo_plantilla}")
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border: 1px solid #6EE7B7; border-radius: 14px; padding: 16px 20px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <div style="color: #065F46; font-weight: 800; font-size: 15px;">🔒 HISTORIA CLÍNICA CERRADA Y SELLADA LEGALMENTE</div>
+                    <div style="color: #047857; font-size: 12.5px; margin-top: 2px;">Firmado por: <b>{datos_hc.get('firmado_por')}</b> el {datos_hc.get('fecha_firma')}</div>
+                </div>
+                <span style="background: #FFFFFF; color: #059669; font-weight: 700; font-size: 12px; padding: 5px 12px; border-radius: 999px; border: 1px solid #A7F3D0;">Formato: {tipo_plantilla}</span>
+            </div>
+        """, unsafe_allow_html=True)
         
         with st.container(border=True):
-            st.markdown("<h5 style='color: #164032; margin-bottom: 20px;'>Datos Registrados en el Expediente:</h5>", unsafe_allow_html=True)
+            st.markdown("<h5 style='color: #0F172A; margin-bottom: 16px;'>📋 Registro Clínico de Evaluación</h5>", unsafe_allow_html=True)
             
-            # --- ITERACIÓN ORDENADA BASADA EN EL MAPEO MAESTRO ---
             for clave, titulo in ORDEN_CAMPOS.get(tipo_plantilla, []):
                 valor = datos_hc.get(clave, "N/A")
-                
                 if isinstance(valor, list):
                     valor = ", ".join(valor) if valor else "Ninguno"
                 
-                # Solo mostrar campos que tengan texto real (no vacíos ni N/A)
                 if str(valor).strip() and str(valor).strip() != "N/A":
-                    st.markdown(f"**{titulo}:**")
-                    st.write(valor)
-                    st.markdown("<hr style='margin: 10px 0px; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #2563EB; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px;">
+                            <div style="font-size: 12px; font-weight: 700; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">{titulo}</div>
+                            <div style="font-size: 14px; color: #1E293B; line-height: 1.5; white-space: pre-wrap;">{valor}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
 
     # ==========================================
     # MODO EDICIÓN (BORRADOR ACTIVO)
     # ==========================================
     else:
         if not st.session_state.conf_borrador and not st.session_state.conf_sello:
-            st.info(f"📝 **MODO EDICIÓN (Borrador) | Formato: {tipo_plantilla}**")
-            st.caption("Complete todos los campos. Si una pregunta no aplica, escriba 'N/A'. Puede expandir cualquier caja arrastrando su esquina inferior derecha.")
+            st.markdown(f"""
+                <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 12px; padding: 12px 18px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                    <div style="color: #1E3A8A; font-size: 13.5px; font-weight: 600;">📝 <b>MODO EDICIÓN (Borrador Activo)</b> — Complete los apartados desplegables. Si un campo no aplica, escriba <b>'N/A'</b>.</div>
+                    <span style="background: #DBEAFE; color: #1D4ED8; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px;">Plantilla: {tipo_plantilla}</span>
+                </div>
+            """, unsafe_allow_html=True)
             
             with st.form("form_hc"):
                 payload = {}
@@ -559,13 +596,10 @@ def render(db, paciente, id_pac):
                     with st.expander("III. Antecedentes Médicos Personales"):
                         payload["nut_medicos"] = st.text_area("Antecedentes Médicos y Quirúrgicos:", value=datos_hc.get("nut_medicos", ""))
                         payload["nut_meds"] = st.text_area("Medicamentos, Suplementos, Sustancias:", value=datos_hc.get("nut_meds", ""))
-                        
-                        # --- NUEVOS CAMPOS ---
                         st.markdown("---")
                         payload["nut_heredofamiliares"] = st.text_area("Antecedentes heredofamiliares relevantes:", value=datos_hc.get("nut_heredofamiliares", ""))
 
                     with st.expander("IV. Hábitos Alimenticios y Recordatorio 24h"):
-                        # --- NUEVOS CAMPOS ---
                         payload["nut_contexto_fam"] = st.text_area("Contexto familiar-alimentario:", value=datos_hc.get("nut_contexto_fam", ""))
                         
                         c_tca1, c_tca2 = st.columns(2)
@@ -574,8 +608,6 @@ def render(db, paciente, id_pac):
                         payload["nut_tca_fam_cual"] = c_tca2.text_input("¿Cuál y parentesco?", value=datos_hc.get("nut_tca_fam_cual", ""))
                         
                         st.markdown("---")
-                        
-                        # --- CAMPO ACTUALIZADO (AGUA) ---
                         opciones_agua = ["", "<500 mL/día", "500–999 mL/día", "1–1.49 L/día", "1.5–1.99 L/día", "2–2.49 L/día", "2.5–2.99 L/día", "≥3 L/día"]
                         payload["nut_agua_rango"] = st.selectbox("Consumo de agua (Rango diario):", opciones_agua, index=opciones_agua.index(datos_hc.get("nut_agua_rango", "")) if datos_hc.get("nut_agua_rango", "") in opciones_agua else 0)
                         
@@ -664,7 +696,7 @@ def render(db, paciente, id_pac):
                 with c_btn2:
                     btn_firmar = st.form_submit_button("🔐 FIRMAR Y SELLAR DEFINITIVAMENTE", type="primary", use_container_width=True)
 
-            # --- LÓGICA DE VALIDACIÓN MEJORADA ---
+            # --- LÓGICA DE VALIDACIÓN ---
             if btn_borrador:
                 st.session_state.tmp_hc = payload
                 st.session_state.conf_borrador = True
@@ -679,7 +711,6 @@ def render(db, paciente, id_pac):
                         campos_faltantes.append(k.replace("_", " ").title())
                 
                 if campos_faltantes:
-                    lista_errores = "\n".join([f"- {campo}" for campo in campos_faltantes])
                     st.error(f"🚨 **NO SE PUEDE SELLAR EL EXPEDIENTE.**\n\nFaltan {len(campos_faltantes)} campos por llenar. Si no aplican, escriba 'N/A'.\nRevise todas las secciones desplegables.")
                 else:
                     st.session_state.tmp_hc = payload
