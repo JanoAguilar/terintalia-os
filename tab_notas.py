@@ -60,9 +60,10 @@ def estructurar_contenido_nota(n, tipo, complementos=None):
             ("P — Plan", f"Intervención: {n.get('fis_p_intervencion','')}\nIndicaciones: {n.get('fis_p_indicaciones','')}")
         ])
 
-    # 2. AGREGAR LAS NOTAS COMPLEMENTARIAS AL FINAL
+    # 2. AGREGAR LAS NOTAS COMPLEMENTARIAS AL FINAL (ORDENADAS CRONOLÓGICAMENTE)
     if complementos:
-        for idx, comp in enumerate(complementos):
+        complementos_ordenados = sorted(complementos, key=lambda x: x.get("fecha_sistema", ""))
+        for idx, comp in enumerate(complementos_ordenados):
             titulo_comp = f"📌 NOTA COMPLEMENTARIA {idx+1} ({comp.get('fecha_sistema', '')} por {comp.get('autor', '')})"
             campos.append((titulo_comp, comp.get('nc_texto', '')))
 
@@ -105,7 +106,6 @@ def compilar_nota_pdf(nota, elements, styles, complementos=None):
         if str(contenido).strip() and str(contenido).strip() != "N/A":
             contenido_limpio = str(contenido).replace('\n', '<br />')
             
-            # Estilo diferente para el título si es Complementaria
             if "NOTA COMPLEMENTARIA" in titulo:
                 elements.append(Paragraph(titulo, comp_heading))
             else:
@@ -139,7 +139,6 @@ def generar_pdf_todas(paciente, notas_normales, notas_complementarias):
     
     crear_encabezado_pdf(paciente, elements, styles)
     
-    # Orden cronológico del inicio al fin
     notas_cronologicas = sorted(notas_normales, key=lambda x: x.get("fecha_sistema", ""))
     
     for nota in notas_cronologicas:
@@ -150,6 +149,25 @@ def generar_pdf_todas(paciente, notas_normales, notas_complementarias):
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
+
+# ==========================================
+# FUNCIÓN AUXILIAR DE AUTO-SCROLL
+# ==========================================
+def ejecutar_scroll_arriba():
+    components.html(
+        """
+        <script>
+            const parentDoc = window.parent.document;
+            const mainContainer = parentDoc.querySelector('.main') || parentDoc.querySelector('section.main');
+            if (mainContainer) {
+                mainContainer.scrollTo({top: 0, behavior: 'smooth'});
+            } else {
+                window.parent.scrollTo({top: 0, behavior: 'smooth'});
+            }
+        </script>
+        """,
+        height=0
+    )
 
 # ==========================================
 # RENDERIZADO PRINCIPAL
@@ -253,37 +271,52 @@ def render(db, id_pac, paciente=None):
     lista_sesiones.append("Otra (Especificar manualmente)")
 
     # ==========================================
-    # PANTALLAS PRINCIPALES DE ENTRADA
+    # PANTALLAS PRINCIPALES DE ENTRADA (ORDEN DE PRIORIDAD CORREGIDO)
     # ==========================================
     
-    # 1. MODO: AGREGAR NOTA COMPLEMENTARIA
-    if st.session_state.agregando_comp_a:
+    # 1. PRIORIDAD MÁXIMA: PANTALLA DE CONFIRMACIÓN DE NOTA COMPLEMENTARIA
+    if st.session_state.conf_sello_comp:
+        ejecutar_scroll_arriba()
         
-        # --- INYECCIÓN DE JS PARA HACER SCROLL HACIA ARRIBA AUTOMÁTICAMENTE ---
-        components.html(
-            """
-            <script>
-                const parentDoc = window.parent.document;
-                const mainContainer = parentDoc.querySelector('.main') || parentDoc.querySelector('section.main');
-                if (mainContainer) {
-                    mainContainer.scrollTo({top: 0, behavior: 'smooth'});
-                } else {
-                    window.parent.scrollTo({top: 0, behavior: 'smooth'});
-                }
-            </script>
-            """,
-            height=0
-        )
+        comp_prev = st.session_state.tmp_comp
+        st.error(f"🚨 **ADVERTENCIA LEGAL:** Estás a punto de **SELLAR DEFINITIVAMENTE** esta Nota Complementaria para la **{comp_prev.get('referencia_sesion', 'Sesión')}**. \n\nQuedará anexada permanentemente al registro sin alterar el documento original. ¿Confirmas que el texto es correcto?")
+        
+        with st.container(border=True):
+            st.markdown(f"**Texto a sellar:**\n\n{comp_prev.get('nc_texto', '')}")
+            
+        c1, c2 = st.columns(2)
+        if c1.button("🔐 SÍ, ESTOY SEGURO, SELLAR COMPLEMENTO", type="primary", use_container_width=True):
+            payload_final = st.session_state.tmp_comp
+            payload_final["fecha_sistema"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            db.collection("pacientes").document(id_pac).collection("notas_evolucion").add(payload_final)
+            st.session_state.conf_sello_comp = False
+            st.session_state.agregando_comp_a = None
+            st.session_state.tmp_comp = {}
+            st.success("✅ Nota complementaria anexada y sellada legalmente.")
+            st.rerun()
+        if c2.button("⬅️ REGRESAR Y EDITAR TEXTO", use_container_width=True):
+            st.session_state.conf_sello_comp = False
+            st.rerun()
+
+    # 2. SEGUNDA PRIORIDAD: FORMULARIO PARA ESCRIBIR LA NOTA COMPLEMENTARIA
+    elif st.session_state.agregando_comp_a:
+        ejecutar_scroll_arriba()
         
         nota_orig = st.session_state.agregando_comp_a
         sesion_nombre = nota_orig.get("sesion_num", "Sesión")
+        texto_previo = st.session_state.tmp_comp.get("nc_texto", "")
         
         with st.container(border=True):
-            st.markdown(f"<h3 style='color:#8E44AD;'>📌 Agregar Nota Complementaria a: {sesion_nombre}</h3>", unsafe_allow_html=True)
-            st.info("La nota complementaria se anexará al documento original sin modificar su contenido legal. Utilice este espacio para hacer adiciones o aclaraciones a la sesión ya sellada.")
+            st.markdown(f"""
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="color:#7C3AED; margin:0; font-size:20px;">📌 Agregar Nota Complementaria a: {sesion_nombre}</h3>
+                    <span style="background:#F3E8FF; color:#7C3AED; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px;">Anexo Legal</span>
+                </div>
+            """, unsafe_allow_html=True)
+            st.info("La nota complementaria se anexará al documento original sin modificar su contenido previo. Utilice este espacio para hacer adiciones, precisiones o aclaraciones clínicas.")
             
             with st.form("form_complemento"):
-                texto_comp = st.text_area("Redacte la adición o aclaración clínica:", height=200)
+                texto_comp = st.text_area("Redacte la adición o aclaración clínica:", value=texto_previo, height=180, placeholder="Escriba aquí la aclaración correspondiente a esta sesión...")
                 
                 st.write("")
                 c1, c2 = st.columns(2)
@@ -292,13 +325,13 @@ def render(db, id_pac, paciente=None):
                 
                 if submit_comp:
                     if not texto_comp.strip():
-                        st.error("El texto de la nota complementaria no puede estar vacío.")
+                        st.error("⚠️ El texto de la nota complementaria no puede estar vacío.")
                     else:
                         st.session_state.tmp_comp = {
                             "tipo_nota": "NOTA COMPLEMENTARIA",
                             "referencia_id": nota_orig["_id"],
                             "referencia_sesion": sesion_nombre,
-                            "nc_texto": texto_comp,
+                            "nc_texto": texto_comp.strip(),
                             "estado": "SELLADA",
                             "fecha_sistema": datetime.now().strftime("%Y-%m-%d %H:%M"),
                             "autor": st.session_state.get("nombre", "Especialista")
@@ -307,31 +340,51 @@ def render(db, id_pac, paciente=None):
                         st.rerun()
                 if cancel_comp:
                     st.session_state.agregando_comp_a = None
+                    st.session_state.conf_sello_comp = False
+                    st.session_state.tmp_comp = {}
                     st.rerun()
 
-    # 1.1 CONFIRMAR NOTA COMPLEMENTARIA
-    elif st.session_state.conf_sello_comp:
-        
-        components.html("<script>window.parent.document.querySelector('.main').scrollTo({top: 0, behavior: 'smooth'});</script>", height=0)
-        
-        st.error("🚨 **ADVERTENCIA LEGAL:** Estás a punto de **SELLAR DEFINITIVAMENTE** esta Nota Complementaria. \n\nQuedará anexada permanentemente al registro. ¿Confirmas que el texto es correcto?")
+    # 3. TERCERA PRIORIDAD: PANTALLAS DE CONFIRMACIÓN DE NOTAS NORMALES
+    elif st.session_state.conf_borrador_n:
+        ejecutar_scroll_arriba()
+        st.warning("⚠️ **ATENCIÓN:** Estás a punto de guardar esta nota como **Borrador**. La nota aún no tendrá validez legal y podrás seguir editándola después. ¿Deseas continuar?")
         c1, c2 = st.columns(2)
-        if c1.button("🔐 SÍ, ESTOY SEGURO, SELLAR COMPLEMENTO", type="primary", use_container_width=True):
-            payload_final = st.session_state.tmp_comp
-            db.collection("pacientes").document(id_pac).collection("notas_evolucion").add(payload_final)
-            st.session_state.conf_sello_comp = False
-            st.session_state.agregando_comp_a = None
-            st.success("Nota complementaria anexada y sellada legalmente.")
+        if c1.button("✅ SÍ, GUARDAR BORRADOR", use_container_width=True):
+            payload_final = st.session_state.tmp_nota
+            payload_final["estado"] = "BORRADOR"
+            
+            db.collection("pacientes").document(id_pac).collection("notas_evolucion").document("borrador_actual").set(payload_final)
+            st.session_state.conf_borrador_n = False
+            st.success("Borrador guardado exitosamente.")
             st.rerun()
-        if c2.button("❌ CANCELAR Y REVISAR TEXTO", use_container_width=True):
-            st.session_state.conf_sello_comp = False
+        if c2.button("❌ CANCELAR Y REGRESAR", use_container_width=True):
+            st.session_state.conf_borrador_n = False
             st.rerun()
 
-    # 2. MODO: CREAR NOTA NORMAL
-    elif not st.session_state.conf_borrador_n and not st.session_state.conf_sello_n:
-        
+    elif st.session_state.conf_sello_n:
+        ejecutar_scroll_arriba()
+        st.error("🚨 **ADVERTENCIA LEGAL:** Estás a punto de **SELLAR DEFINITIVAMENTE** esta Nota. \n\nEsta acción es **IRREVERSIBLE** y el documento quedará anexado al historial del paciente sin posibilidad de modificación futura. ¿Confirmas que los datos son correctos?")
+        c1, c2 = st.columns(2)
+        if c1.button("🔐 SÍ, ESTOY SEGURO, FIRMAR Y SELLAR", type="primary", use_container_width=True):
+            payload_final = st.session_state.tmp_nota
+            payload_final["estado"] = "SELLADA"
+            payload_final["fecha_sistema"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            payload_final["autor"] = st.session_state.get("nombre", "Especialista")
+            
+            db.collection("pacientes").document(id_pac).collection("notas_evolucion").add(payload_final)
+            db.collection("pacientes").document(id_pac).collection("notas_evolucion").document("borrador_actual").delete()
+            
+            st.session_state.conf_sello_n = False
+            st.success("Nota sellada y encriptada legalmente.")
+            st.rerun()
+        if c2.button("❌ CANCELAR Y REVISAR DATOS", use_container_width=True):
+            st.session_state.conf_sello_n = False
+            st.rerun()
+
+    # 4. MODO POR DEFECTO: CREAR NOTA DE EVOLUCIÓN NORMAL
+    else:
         expandir_formulario = True if datos_borrador else False
-        titulo_expander = f"📝 CONTINUAR BORRADOR ACTIVO - {datos_borrador.get('sesion_num', '')}" if datos_borrador else "✍️ CREAR NUEVA NOTA DE EVOLUCIÓN"
+        titulo_expander = f"📝 CONTINUAR BORRADOR ACTIVO — {datos_borrador.get('sesion_num', '')}" if datos_borrador else "✍️ CREAR NUEVA NOTA DE EVOLUCIÓN"
 
         with st.expander(titulo_expander, expanded=expandir_formulario):
             
@@ -510,7 +563,6 @@ def render(db, id_pac, paciente=None):
             if btn_firmar:
                 sesion_evaluar = payload["sesion_num"].strip()
                 
-                # Candado Anti-Duplicados
                 if sesion_evaluar in sesiones_usadas:
                     st.error(f"🚨 **Sesión Duplicada:** Ya existe una nota sellada para '{sesion_evaluar}'. Por favor, modifique el nombre o número de la sesión.")
                 elif sesion_evaluar == "":
@@ -526,58 +578,31 @@ def render(db, id_pac, paciente=None):
                         st.rerun()
 
     # ==========================================
-    # PANTALLAS DE CONFIRMACIÓN (NOTAS NORMALES)
-    # ==========================================
-    elif st.session_state.conf_borrador_n:
-        components.html("<script>window.parent.document.querySelector('.main').scrollTo({top: 0, behavior: 'smooth'});</script>", height=0)
-        st.warning("⚠️ **ATENCIÓN:** Estás a punto de guardar esta nota como **Borrador**. La nota aún no tendrá validez legal y podrás seguir editándola después. ¿Deseas continuar?")
-        c1, c2 = st.columns(2)
-        if c1.button("✅ SÍ, GUARDAR BORRADOR", use_container_width=True):
-            payload_final = st.session_state.tmp_nota
-            payload_final["estado"] = "BORRADOR"
-            
-            db.collection("pacientes").document(id_pac).collection("notas_evolucion").document("borrador_actual").set(payload_final)
-            st.session_state.conf_borrador_n = False
-            st.success("Borrador guardado exitosamente.")
-            st.rerun()
-        if c2.button("❌ CANCELAR Y REGRESAR", use_container_width=True):
-            st.session_state.conf_borrador_n = False
-            st.rerun()
-
-    elif st.session_state.conf_sello_n:
-        components.html("<script>window.parent.document.querySelector('.main').scrollTo({top: 0, behavior: 'smooth'});</script>", height=0)
-        st.error("🚨 **ADVERTENCIA LEGAL:** Estás a punto de **SELLAR DEFINITIVAMENTE** esta Nota. \n\nEsta acción es **IRREVERSIBLE** y el documento quedará anexado al historial del paciente sin posibilidad de modificación futura. ¿Confirmas que los datos son correctos?")
-        c1, c2 = st.columns(2)
-        if c1.button("🔐 SÍ, ESTOY SEGURO, FIRMAR Y SELLAR", type="primary", use_container_width=True):
-            payload_final = st.session_state.tmp_nota
-            payload_final["estado"] = "SELLADA"
-            payload_final["fecha_sistema"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-            payload_final["autor"] = st.session_state.get("nombre", "Especialista")
-            
-            db.collection("pacientes").document(id_pac).collection("notas_evolucion").add(payload_final)
-            db.collection("pacientes").document(id_pac).collection("notas_evolucion").document("borrador_actual").delete()
-            
-            st.session_state.conf_sello_n = False
-            st.success("Nota sellada y encriptada legalmente.")
-            st.rerun()
-        if c2.button("❌ CANCELAR Y REVISAR DATOS", use_container_width=True):
-            st.session_state.conf_sello_n = False
-            st.rerun()
-
-    # ==========================================
     # SECCIÓN: HISTORIAL DE NOTAS Y EXPORTACIÓN
     # ==========================================
-    c_hist_1, c_hist_2 = st.columns([2, 1])
+    st.write("")
+    c_hist_1, c_hist_2 = st.columns([2.2, 1])
     with c_hist_1:
-        st.markdown("<h4 style='color: #E67E22; font-size: 16px; margin-top: 15px;'>📜 Historial de Notas de Evolución</h4>", unsafe_allow_html=True)
+        st.markdown("""
+            <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+                <span style="background:#FFF7ED; color:#EA580C; font-weight:800; font-size:12px; padding:4px 10px; border-radius:8px;">HISTORIAL</span>
+                <h4 style="color:#0F172A; margin:0; font-size:18px; font-weight:800;">Línea de Tiempo de Notas de Evolución</h4>
+            </div>
+        """, unsafe_allow_html=True)
     
     notas_normales.sort(key=lambda x: x.get("fecha_sistema", ""), reverse=True)
     
     with c_hist_2:
         if notas_normales:
-            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             pdf_todas = generar_pdf_todas(paciente, notas_normales, notas_complementarias)
-            st.download_button("📥 Exportar TODAS las Sesiones (PDF)", data=pdf_todas, file_name=f"Notas_Evolucion_{paciente.get('nombre', 'Paciente')}_Completas.pdf", mime="application/pdf", use_container_width=True, type="primary")
+            st.download_button(
+                "📥 Exportar Historial Completo (PDF)",
+                data=pdf_todas,
+                file_name=f"Notas_Evolucion_{paciente.get('nombre', 'Paciente')}_Completas.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary"
+            )
     
     if not notas_normales:
         st.info("No hay notas previas registradas en este expediente.")
@@ -588,12 +613,13 @@ def render(db, id_pac, paciente=None):
             fecha = n.get("fecha_sesion_str", n.get("fecha_sistema", "")[:10])
             autor = n.get("autor", "Especialista")
             
-            with st.expander(f"📅 {fecha} | {sesion} | {tipo} | 👨‍⚕️ {autor}"):
+            # Obtenemos los complementos si existen
+            comps_de_esta_nota = [c for c in notas_complementarias if c.get("referencia_id") == n.get("_id")]
+            etiqueta_anexos = f"  •  📌 {len(comps_de_esta_nota)} Anexo(s)" if comps_de_esta_nota else ""
+            
+            with st.expander(f"📅 {fecha}  |  {sesion}  |  {tipo}  |  👨‍⚕️ {autor}{etiqueta_anexos}"):
                 c_head1, c_head2 = st.columns([3, 1])
-                c_head1.caption(f"Sellada en sistema el: {n.get('fecha_sistema', '')}")
-                
-                # Obtenemos los complementos si existen
-                comps_de_esta_nota = [c for c in notas_complementarias if c.get("referencia_id") == n.get("_id")]
+                c_head1.caption(f"🔒 Sellada en sistema el: {n.get('fecha_sistema', '')}")
                 
                 pdf_individual = generar_pdf_individual(paciente, n, comps_de_esta_nota)
                 c_head2.download_button(
@@ -609,8 +635,12 @@ def render(db, id_pac, paciente=None):
                 for titulo, contenido in campos:
                     if str(contenido).strip() and str(contenido).strip() != "N/A":
                         if "COMPLEMENTARIA" in titulo:
-                            # Resaltado visual para las notas complementarias
-                            st.markdown(f"<div style='background-color:#F5EEF8; padding:10px; border-radius:5px; margin-top:10px; border-left: 4px solid #8E44AD;'><b style='color:#8E44AD;'>{titulo}:</b><br>{contenido}</div>", unsafe_allow_html=True)
+                            st.markdown(f"""
+                                <div style="background-color:#F5F3FF; padding:12px 16px; border-radius:10px; margin-top:10px; border:1px solid #DDD6FE; border-left: 4px solid #7C3AED;">
+                                    <div style="font-size:12px; font-weight:800; color:#6D28D9; margin-bottom:4px;">{titulo}</div>
+                                    <div style="font-size:14px; color:#1E293B; white-space:pre-wrap;">{contenido}</div>
+                                </div>
+                            """, unsafe_allow_html=True)
                         else:
                             st.markdown(f"**{titulo}:**\n{contenido}")
                 
@@ -618,4 +648,6 @@ def render(db, id_pac, paciente=None):
                 st.markdown("---")
                 if st.button(f"➕ Agregar Nota Complementaria a {sesion}", key=f"btn_add_comp_{n['_id']}", use_container_width=True):
                     st.session_state.agregando_comp_a = n
+                    st.session_state.conf_sello_comp = False
+                    st.session_state.tmp_comp = {}
                     st.rerun()
